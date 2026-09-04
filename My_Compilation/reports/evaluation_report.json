@@ -1,0 +1,80 @@
+{
+  "timestamp": "2026-09-04T20:41:32Z",
+  "standard": "ECSS-Q-ST-60-02C & MIL-STD-883",
+  "unseen_fault_benchmark": {
+    "total_samples": 7500,
+    "true_positives": 2443,
+    "false_positives": 7,
+    "true_negatives": 5050,
+    "false_negatives": 0,
+    "precision": 0.9971,
+    "recall": 1.0,
+    "f1_score": 0.9986,
+    "roc_auc": 0.9994,
+    "false_negative_rate": 0.0,
+    "false_positive_rate": 0.00138,
+    "avg_inference_latency_ms": 2.87,
+    "p99_inference_latency_ms": 4.0201
+  },
+  "drift_168h_ground_truth_benchmark": {
+    "mean_absolute_error_uA": 0.583,
+    "root_mean_squared_error_uA": 0.825,
+    "mean_absolute_percentage_error": 3.43,
+    "mean_error_bias_uA": -0.496,
+    "error_std_dev_uA": 0.66,
+    "prediction_interval_95_uA": [
+      -1.789,
+      0.797
+    ],
+    "error_by_severity": {
+      "minor_stable_drift_mae_uA": 0.397,
+      "moderate_creep_mae_uA": 1.083,
+      "critical_breach_mae_uA": 0.358
+    },
+    "average_early_rejection_lead_time_hours": 164.4,
+    "chamber_time_saved_percent": 97.9
+  },
+  "ablation_study": {
+    "isolation_forest_only": {
+      "catches_instant_spike": true,
+      "catches_slow_thermal_creep": false,
+      "catches_catastrophic_short": true,
+      "false_alarm_count_1000_nominal": 0,
+      "summary": "Effective for high-dimensional shorts, but completely misses slow gradual thermal degradation early on."
+    },
+    "cusum_only": {
+      "catches_instant_spike": true,
+      "catches_slow_thermal_creep": true,
+      "creep_detection_latency_steps": 12,
+      "catches_catastrophic_short": true,
+      "summary": "Superb for cumulative creep detection, but lacks multi-dimensional voltage/current correlation capability."
+    },
+    "combined_system": {
+      "catches_instant_spike": true,
+      "catches_slow_thermal_creep": true,
+      "catches_catastrophic_short": true,
+      "false_alarm_count_1000_nominal": 0,
+      "summary": "100% recall across both instantaneous multivariate collapses and latent time-series creep."
+    },
+    "criticality_levels_comparison": {
+      "level_1": {
+        "tier": "LOW-CRITICALITY",
+        "cusum_threshold": 7.0,
+        "if_score_gate": 0.65,
+        "creep_detection_step": 13
+      },
+      "level_2": {
+        "tier": "STANDARD",
+        "cusum_threshold": 5.0,
+        "if_score_gate": 0.55,
+        "creep_detection_step": 12
+      },
+      "level_3": {
+        "tier": "MISSION-CRITICAL",
+        "cusum_threshold": 3.5,
+        "if_score_gate": 0.45,
+        "creep_detection_step": 10
+      }
+    }
+  }
+}

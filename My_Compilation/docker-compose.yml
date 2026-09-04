@@ -1,0 +1,42 @@
+# ==============================================================================
+# PROJECT ARJUNA (SIH 26170): DOCKER COMPOSE ORCHESTRATION
+# ==============================================================================
+
+version: "3.8"
+
+services:
+  arjuna-mission-control:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: project-arjuna:latest
+    container_name: arjuna_mission_control
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - SECURITY_ENABLED=true
+      - ARJUNA_API_KEY=${ARJUNA_API_KEY:-arjuna-mission-key-2026}
+      - ARJUNA_ADMIN_KEY=${ARJUNA_ADMIN_KEY:-arjuna-admin-key-2026}
+      - ARJUNA_QA_KEY=${ARJUNA_QA_KEY:-arjuna-qa-key-2026}
+      - ARJUNA_VIEWER_KEY=${ARJUNA_VIEWER_KEY:-arjuna-viewer-key-2026}
+      - SUPABASE_ENABLED=${SUPABASE_ENABLED:-false}
+      - SUPABASE_URL=${SUPABASE_URL:-}
+      - SUPABASE_KEY=${SUPABASE_KEY:-}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2048M
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+

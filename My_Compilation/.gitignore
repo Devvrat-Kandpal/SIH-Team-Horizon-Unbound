@@ -1,0 +1,13 @@
+Backend/.env
+.env
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.db
+*.sqlite
+Backend/app_state_backup.json
+*.csv
+archive/
+.ruff_cache/
+.mypy_cache/

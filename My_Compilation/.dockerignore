@@ -1,0 +1,20 @@
+# Project ARJUNA: Docker Build Exclusions
+archive/
+*.csv
+Model/*.csv
+simulation/*.csv
+*.db
+*.sqlite
+.git/
+.github/
+.env
+Backend/.env
+.venv/
+reports/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.md
+!README.md

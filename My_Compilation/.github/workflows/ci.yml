@@ -1,0 +1,51 @@
+name: Project ARJUNA CI
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  quality-and-tests:
+    name: Lint, Test & Benchmark
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install ruff mypy pytest-cov
+
+      - name: Lint with Ruff
+        run: |
+          ruff check Backend/ tests/ --exit-non-zero-on-fix
+
+      - name: Static Type Check with Mypy
+        run: |
+          mypy Backend/ --ignore-missing-imports || true
+
+      - name: Run Full 7-Module Pytest Test Suite
+        run: |
+          pytest tests/ -v --durations=10
+
+      - name: Run Aerospace Quantitative Benchmark
+        run: |
+          python evaluate_model.py
+
+      - name: Verify Reports Generated
+        run: |
+          test -f reports/evaluation_report.json
+          test -f reports/ablation_study.md
+          echo "All benchmark reports verified successfully."
+

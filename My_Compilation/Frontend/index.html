@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="PROJECT ARJUNA — ISRO Component Burn-In Anomaly Detection & Screening System (SIH 26170)">
+    <link rel="icon" href="data:,">
+    <title>PROJECT ARJUNA | AI-Driven Anomaly Detection in Component Burn-In & Screening (SIH 26170)</title>
+    <!-- Chart.js local file for offline support -->
+    <script src="chart_v4.js"></script>
+    <link rel="stylesheet" href="styles.css?v=6">
+</head>
+<body>
+    <div id="app">
+        <!-- =====================================================
+             INTRO SCREEN
+             ===================================================== -->
+        <section id="introScreen">
+            <div class="introContent">
+                <div class="logoContainer">
+                    <img src="space.jpg" alt="Horizon Unbound Logo">
+                </div>
+                <div class="introSmall">HORIZON UNBOUND &bull; SIH 26170 &bull; ISRO</div>
+                <h1>PROJECT ARJUNA</h1>
+                <div class="introSubtitle">AI-DRIVEN ANOMALY DETECTION IN COMPONENT BURN-IN & SCREENING</div>
+                <div class="initializing">INITIALIZING ISRO HIGH-RELIABILITY SCREENING ENVIRONMENT (125°C)...</div>
+                <div class="loadingBox">
+                    <div id="loadingBar"></div>
+                </div>
+                <div id="loadingText">LOADING MODULE A (DYNAMIC OUTLIERS) & MODULE B (168H DRIFT PREDICTOR)</div>
+                <button id="btnEnterDashboard" class="enterBtn">LAUNCH MISSION CONTROL &rarr;</button>
+            </div>
+        </section>
+
+        <!-- =====================================================
+             MAIN MISSION CONTROL DASHBOARD
+             ===================================================== -->
+        <section id="mainPage">
+            <!-- Animated Background -->
+            <div class="spaceScene">
+                <div class="spaceStar star1"></div>
+                <div class="spaceStar star2"></div>
+                <div class="spaceStar star3"></div>
+                <div class="spaceStar star4"></div>
+                <div class="spaceStar star5"></div>
+                <div class="planet planetBlue">
+                    <div class="planetLight"></div>
+                </div>
+                <div class="planet planetRed">
+                    <div class="planetShadow"></div>
+                </div>
+                <div class="spaceSun">
+                    <div class="sunGlow"></div>
+                </div>
+            </div>
+
+            <!-- Dashboard Header -->
+            <header class="dashboardHeader">
+                <div class="brandArea">
+                    <div class="miniLogo">
+                        <img src="space.jpg" alt="Horizon Unbound">
+                    </div>
+                    <div>
+                        <div class="brandName">PROJECT ARJUNA 2.0 &bull; ISRO COMPONENT BURN-IN MISSION CONTROL</div>
+                        <div class="brandSub">AI-DRIVEN COMPONENT BURN-IN ANOMALY DETECTION &bull; ECSS-Q-ST-60-02C &bull; ISRO QUALIFICATION SUITE</div>
+                    </div>
+                </div>
+
+                <div class="headerRight">
+                    <div class="wsBadge" id="wsStatusBadge">
+                        <span class="statusDot" id="wsDot"></span>
+                        <span id="wsStatusText">STANDALONE DEMO READY</span>
+                    </div>
+                    <div class="systemStatus">
+                        <span class="statusDot green" id="systemDot"></span>
+                        <span id="systemStatusText">DYNAMIC FDIR ACTIVE</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Standard Disclosure & Real-Time Performance Banner -->
+            <div class="simulationDisclosureBanner" role="region" aria-label="Simulation Standard and Performance">
+                <div class="bannerLeft">
+                    <span class="standardPill">ECSS-Q-ST-60-02C &bull; MIL-STD-883 STATIC 125°C</span>
+                    <span class="disclosureText">Synthetic Space Qualification Bench &bull; NASA EEE-INST-002 Tiers</span>
+                </div>
+                <div class="bannerRight">
+                    <span class="metricPill">Model Quality: <strong id="modelQualityBadge" class="text-green">99.7%</strong></span>
+                    <span class="metricPill">Inference Latency: <strong id="inferenceLatencyBadge" class="text-cyan">&lt;1.0 ms</strong></span>
+                    <span class="metricPill">168h MAE: <strong id="driftMaeBadge" class="text-green">0.58 µA</strong></span>
+                </div>
+            </div>
+
+            <!-- Title & Burn-In Interval Tracker -->
+            <div class="dashboardTitle">
+                <div>
+                    <div class="eyebrow">HIGH-TEMPERATURE OPERATING LIFE (HTOL) & SCREENING BENCH</div>
+                    <h2>TIME-SERIES PARAMETRIC <span>ANOMALY DETECTION</span></h2>
+                    <p>Dynamic Outlier Isolation (Module A) & 168-Hour Latent Drift Forecasting (Module B)</p>
+                </div>
+
+                <div class="missionClock">
+                    <div class="clockLabel">BURN-IN DURATION</div>
+                    <div id="missionTime">00:00:00</div>
+                </div>
+            </div>
+
+            <!-- =====================================================
+                 ISRO BURN-IN TEST INTERVAL TRACKER (0h -> 24h -> 96h -> 168h)
+                 ===================================================== -->
+            <div class="intervalTrackerPanel">
+                <div class="intervalHeader">
+                    <span class="intervalTitle">⏱️ BURN-IN TEST INTERVAL TRACKER (ECSS-Q-ST-60-02C)</span>
+                    <span class="earlyRejectBadge" id="earlyRejectTag">EARLY SCREENING: MONITORING</span>
+                </div>
+                <div class="intervalBar">
+                    <div class="intervalProgressFill" id="intervalFill" style="width: 0%;"></div>
+                </div>
+                <div class="intervalStages">
+                    <div class="stageNode active" id="stage0h">
+                        <span class="stagePoint">●</span>
+                        <span class="stageLabel">0h (Pre-Burn-In Baseline)</span>
+                    </div>
+                    <div class="stageNode" id="stage24h">
+                        <span class="stagePoint">●</span>
+                        <span class="stageLabel">24h (Early Drift Check)</span>
+                    </div>
+                    <div class="stageNode" id="stage96h">
+                        <span class="stagePoint">●</span>
+                        <span class="stageLabel">96h (Intermediate Verification)</span>
+                    </div>
+                    <div class="stageNode" id="stage168h">
+                        <span class="stagePoint">●</span>
+                        <span class="stageLabel">168h (Final Qualification Target)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- =====================================================
+                 TOP TELEMETRY CARDS (ISRO PARAMETERS)
+                 ===================================================== -->
+            <div class="telemetryGrid">
+                <!-- Standby Current Iddq (Module A Core Metric) -->
+                <div class="telemetryCard cyan" id="iddqCard">
+                    <div class="cardTop">
+                        <div class="cardIcon">Iddq</div>
+                        <div class="cardBadge" id="iddqBadge">AWAITING TELEMETRY</div>
+                    </div>
+                    <div class="cardLabel">STANDBY LEAKAGE CURRENT</div>
+                    <div class="cardValue" id="iddqValue">--</div>
+                    <div class="cardUnit">MICROAMPERES (µA) &bull; MAX: 50.0 µA</div>
+                </div>
+
+                <!-- Operating Voltage -->
+                <div class="telemetryCard blue">
+                    <div class="cardTop">
+                        <div class="cardIcon">V</div>
+                        <div class="cardBadge" id="voltageBadge">STANDBY</div>
+                    </div>
+                    <div class="cardLabel">SUPPLY VOLTAGE (Vdd)</div>
+                    <div class="cardValue" id="voltageValue">--</div>
+                    <div class="cardUnit">VOLTS (DC)</div>
+                </div>
+
+                <!-- Load Current -->
+                <div class="telemetryCard orange">
+                    <div class="cardTop">
+                        <div class="cardIcon">I</div>
+                        <div class="cardBadge" id="currentBadge">STANDBY</div>
+                    </div>
+                    <div class="cardLabel">ACTIVE CURRENT (Idd)</div>
+                    <div class="cardValue" id="currentValue">--</div>
+                    <div class="cardUnit">AMPERES (A)</div>
+                </div>
+
+                <!-- Chamber Temperature (125°C Burn-In) -->
+                <div class="telemetryCard red">
+                    <div class="cardTop">
+                        <div class="cardIcon">°C</div>
+                        <div class="cardBadge" id="tempBadge">CHAMBER READY</div>
+                    </div>
+                    <div class="cardLabel">CHAMBER TEMPERATURE</div>
+                    <div class="cardValue" id="tempValue">--</div>
+                    <div class="cardUnit">CELSIUS (&gt;130°C CRITICAL)</div>
+                </div>
+
+                <!-- AI Multivariate Anomaly Score (Module A) -->
+                <div class="telemetryCard green" id="aiCard">
+                    <div class="cardTop">
+                        <div class="cardIcon">AI</div>
+                        <div class="cardBadge" id="aiBadge">MODULE A (ISOLATION)</div>
+                    </div>
+                    <div class="cardLabel">ANOMALY SEVERITY</div>
+                    <div class="cardValue" id="anomalyScoreValue">--%</div>
+                    <div class="cardUnit">DYNAMIC OUTLIER RISK</div>
+                </div>
+            </div>
+
+            <!-- =====================================================
+                 MAIN WORKSPACE: LIVE CHARTS & QA INSPECTOR FEED
+                 ===================================================== -->
+            <div class="mainDashboardGrid">
+                <!-- LEFT: REAL-TIME MULTI-AXIS SENSOR WAVEFORMS -->
+                <div class="dashboardPanel chartPanel">
+                    <div class="panelTitle">
+                        <span>📊 MULTI-AXIS REAL-TIME SENSOR WAVEFORMS</span>
+                        <div class="chartLegend">
+                            <span class="legendItem"><span class="dot cyan"></span> Iddq (µA)</span>
+                            <span class="legendItem"><span class="dot blue"></span> Voltage (V)</span>
+                            <span class="legendItem"><span class="dot orange"></span> Current (A)</span>
+                            <span class="legendItem"><span class="dot red"></span> Temp (°C)</span>
+                        </div>
+                    </div>
+                    <div class="chartContainer">
+                        <canvas id="telemetryChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- RIGHT: QA INSPECTOR EXPLAINABILITY & FDIR FEED -->
+                <div class="dashboardPanel alertPanel">
+                    <div class="panelTitle">
+                        <span>🛡️ QA INSPECTOR EXPLAINABILITY WINDOW</span>
+                        <span class="liveTag">XAI AUDIT</span>
+                    </div>
+
+                    <!-- Live QA Decision Box (Evaluation Metric 3) -->
+                    <div class="qaDecisionBox" id="qaBox">
+                        <div class="qaHeader">
+                            <span class="qaTitle">🔍 QA INSPECTOR VERDICT</span>
+                            <span class="qaBadge pass" id="qaVerdictBadge">AWAITING TELEMETRY</span>
+                        </div>
+                        <div class="qaJustificationText" id="qaJustificationText">
+                            QA STATUS [INITIALIZING]: Connecting to telemetry stream and awaiting initial sensor readings...
+                        </div>
+                        <div class="qaStatsRow">
+                            <span>Lot Mean (µ): <strong id="lotMeanStat">--</strong></span>
+                            <span>Lot Sigma (σ): <strong id="lotStdStat">--</strong></span>
+                            <span>Z-Score: <strong id="zScoreStat">--</strong></span>
+                            <span id="earlyHoursSaved">Chamber Time Saved: <strong>0 hrs</strong></span>
+                        </div>
+                    </div>
+
+                    <!-- Live Structured XAI Evidence Card -->
+                    <div class="structuredEvidenceBox" id="structuredEvidenceBox">
+                        <div class="evidenceHeader">
+                            <span class="evidenceTitle">🔬 STRUCTURED PARAMETRIC EVIDENCE</span>
+                            <span class="actionBadge pass" id="recommendedActionBadge">ACTION: PROCEED_SCREENING</span>
+                        </div>
+                        <div class="evidenceGrid">
+                            <div class="evidenceCell">
+                                <span class="cellLabel">Rule Triggered:</span>
+                                <strong id="xaiRuleTriggered" class="text-green">NOMINAL_OPERATION</strong>
+                            </div>
+                            <div class="evidenceCell">
+                                <span class="cellLabel">Detected By:</span>
+                                <strong id="xaiDetectionSource" class="text-cyan">None (Nominal)</strong>
+                            </div>
+                            <div class="evidenceCell">
+                                <span class="cellLabel">Parametric Offset:</span>
+                                <strong id="xaiParametricDelta" class="text-green">+0.0 σ (Normal)</strong>
+                            </div>
+                            <div class="evidenceCell">
+                                <span class="cellLabel">Dynamic 3σ Gate:</span>
+                                <strong id="xaiDynamicGate" class="text-yellow">13.51 µA</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- FDIR Dynamic Summary -->
+                    <div class="fdirSummaryBox">
+                        <div class="fdirStatusRow">
+                            <span>Module A (Isolation Forest):</span>
+                            <strong id="ifStatusText" class="text-green">HEALTHY (INLIER)</strong>
+                        </div>
+                        <div class="fdirStatusRow">
+                            <span>Raw Decision Score:</span>
+                            <strong id="rawScoreStat" class="text-green">+0.1824</strong>
+                        </div>
+                        <div class="fdirStatusRow">
+                            <span>Instantaneous Power (P = V×I):</span>
+                            <strong id="powerStat" class="text-green">5.98 W</strong>
+                        </div>
+                        <div class="fdirStatusRow">
+                            <span>Dynamic Silicon Impedance (R):</span>
+                            <strong id="resStat" class="text-green">4.15 Ω</strong>
+                        </div>
+                        <div class="fdirStatusRow">
+                            <span>Gate Propagation Delay (t_pd):</span>
+                            <strong id="pdStat" class="text-green">4.50 ns</strong>
+                        </div>
+                        <div class="fdirStatusRow" style="border-top: 1px solid rgba(99,102,241,0.3); margin-top: 6px; padding-top: 6px;">
+                            <span>Module B — Drift Status:</span>
+                            <strong id="driftStatusText" class="text-green">STABLE (&lt;0.02 µA/h)</strong>
+                        </div>
+                        <div class="fdirStatusRow">
+                            <span>Module B — 168h Forecast (Iddq):</span>
+                            <strong id="forecast168hValue" class="text-green">-- µA (INITIALIZING)</strong>
+                        </div>
+                        <div class="fdirStatusRow">
+                            <span>Module B — Drift Slope:</span>
+                            <strong id="driftSlopeStat" class="text-green">0.0000 µA/h</strong>
+                        </div>
+                        <div class="fdirStatusRow" style="border-top: 1px solid rgba(56,189,248,0.2); margin-top: 6px; padding-top: 6px;">
+                            <span>Module C — CUSUM Drift:</span>
+                            <strong id="cusumStatusText" class="text-green">0.0000 (NORMAL)</strong>
+                        </div>
+                    </div>
+
+                    <!-- Real-Time Event Log -->
+                    <div class="alertFeedContainer" id="alert-feed">
+                        <div class="alertCard alert-green">
+                            <div class="alertTime">[00:00:01]</div>
+                            <div class="alertBody">
+                                <strong>Chamber Initialized:</strong> ESS HTOL burn-in active at 125.0°C. Module A (Dynamic Outlier) and Module B (Drift Predictor) armed.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- =====================================================
+                 SCENARIO CONTROL PANEL (ISRO SPECIFIC PROMPT BENCHES)
+                 ===================================================== -->
+            <div class="scenarioPanel">
+                <div class="scenarioHeader">
+                    <div>
+                        <div class="eyebrow">ISRO EVALUATION BENCH & FAULT INJECTION</div>
+                        <h3>INTERACTIVE DEMO SCENARIOS</h3>
+                    </div>
+                    <div class="activeScenarioTag" id="activeScenarioLabel">SCENARIO: NOMINAL LOT SCREENING</div>
+                </div>
+
+                <div class="scenarioButtons">
+                    <!-- Scenario 1: Nominal -->
+                    <button class="scenarioBtn btn-nominal active" id="btn-nominal" aria-label="Simulate Nominal Lot Screening Scenario">
+                        <span class="btnIcon" aria-hidden="true">🟢</span>
+                        <div>
+                            <div class="btnTitle">Nominal Lot Screening</div>
+                            <small>Healthy lot (Iddq ~10 µA, 5.0V, 1.2A, 125°C)</small>
+                        </div>
+                    </button>
+
+                    <!-- Scenario 2: ISRO Prompt Challenge (45 uA in 10 uA lot) -->
+                    <button class="scenarioBtn btn-outlier" id="btn-isro-outlier" aria-label="Simulate ISRO Dynamic Outlier Scenario">
+                        <span class="btnIcon" aria-hidden="true">🔴</span>
+                        <div>
+                            <div class="btnTitle">ISRO Dynamic Outlier (45 µA)</div>
+                            <small>45 µA &lt; 50 µA max, but 4.5x lot mean &rarr; Dynamic Rejection</small>
+                        </div>
+                    </button>
+
+                    <!-- Scenario 3: Latent Thermal Drift (0h -> 24h -> 168h) -->
+                    <button class="scenarioBtn btn-drift" id="btn-thermal" aria-label="Simulate Latent Thermal Drift Scenario">
+                        <span class="btnIcon" aria-hidden="true">🟡</span>
+                        <div>
+                            <div class="btnTitle">Latent Drift (Early 24h Reject)</div>
+                            <small>Predicts 168h failure at 24h, saving 144h chamber time</small>
+                        </div>
+                    </button>
+
+                    <!-- Scenario 4: Catastrophic Short Circuit -->
+                    <button class="scenarioBtn btn-short" id="btn-short" aria-label="Simulate Catastrophic Electrical Short Circuit">
+                        <span class="btnIcon" aria-hidden="true">⚡</span>
+                        <div>
+                            <div class="btnTitle">Electrical Short Circuit</div>
+                            <small>Instant voltage collapse + current surge</small>
+                        </div>
+                    </button>
+
+                    <!-- Reset -->
+                    <button class="scenarioBtn btn-reset" id="btn-reset" aria-label="Reset Chamber to 0h Baseline">
+                        <span class="btnIcon" aria-hidden="true">🔄</span>
+                        <div>
+                            <div class="btnTitle">Reset Chamber</div>
+                            <small>Clear flags & restore 0h nominal baseline</small>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- =====================================================
+                 CRITICALITY LEVEL SELECTOR (EEE-INST-002 / ECSS)
+                 ===================================================== -->
+            <div class="scenarioPanel" style="margin-top: 12px;">
+                <div class="scenarioHeader">
+                    <div>
+                        <div class="eyebrow">NASA EEE-INST-002 / ECSS-Q-ST-60-02C MISSION TIER</div>
+                        <h3>COMPONENT CRITICALITY LEVEL</h3>
+                    </div>
+                    <div class="activeScenarioTag" id="criticalityLabel" style="border-color: #6366f1;">
+                        LEVEL 2 — STANDARD QUALIFICATION
+                    </div>
+                </div>
+                <div class="scenarioButtons" style="gap: 10px;">
+                    <button class="scenarioBtn" id="btn-crit-1" aria-label="Set criticality level 1 (low)" style="flex:1; border-color: #10b981;">
+                        <span class="btnIcon">🟢</span>
+                        <div>
+                            <div class="btnTitle">Level 1 — Low Criticality</div>
+                            <small>COTS / ground-support (widest thresholds)</small>
+                        </div>
+                    </button>
+                    <button class="scenarioBtn active" id="btn-crit-2" aria-label="Set criticality level 2 (standard)" style="flex:1; border-color: #6366f1;">
+                        <span class="btnIcon">🔵</span>
+                        <div>
+                            <div class="btnTitle">Level 2 — Standard</div>
+                            <small>ECSS space qualification baseline</small>
+                        </div>
+                    </button>
+                    <button class="scenarioBtn" id="btn-crit-3" aria-label="Set criticality level 3 (mission-critical)" style="flex:1; border-color: #ef4444;">
+                        <span class="btnIcon">🔴</span>
+                        <div>
+                            <div class="btnTitle">Level 3 — Mission Critical</div>
+                            <small>Flight hardware / human-rated (tightest thresholds)</small>
+                        </div>
+                    </button>
+                </div>
+                <div style="display:flex; gap:20px; margin-top:8px; padding: 8px 4px; font-size:11px; color:#64748b;">
+                    <span>Active CUSUM threshold (h): <strong id="critCusumThreshold" style="color:#38bdf8">5.0</strong></span>
+                    <span>IF score gate: <strong id="critIfGate" style="color:#a78bfa">0.55</strong></span>
+                    <span>Fault label: <strong id="critFaultLabel" style="color:#f59e0b">STANDARD</strong></span>
+                </div>
+            </div>
+
+            <!-- =====================================================
+                 TELEMETRY AUDIT, HISTORY FILTERS & DATA EXPORT
+                 ===================================================== -->
+            <div class="scenarioPanel" style="margin-top: 12px;">
+                <div class="scenarioHeader">
+                    <div>
+                        <div class="eyebrow">AEROSPACE TELEMETRY AUDIT & DATA EXPORT</div>
+                        <h3>TELEMETRY ARCHIVE & PERSISTENCE CONTROLS</h3>
+                    </div>
+                    <div style="display:flex; gap:10px; align-items:center;">
+                        <button id="btnExportCsv" class="exportBtn" aria-label="Export Telemetry as CSV">
+                            <span>📥</span> Export CSV
+                        </button>
+                        <button id="btnExportJson" class="exportBtn" aria-label="Export Telemetry as JSON">
+                            <span>📦</span> Export JSON
+                        </button>
+                    </div>
+                </div>
+
+                <div class="historyFilterBar">
+                    <div class="filterGroup">
+                        <label for="faultFilterSelect" class="filterLabel">Filter by Fault Type:</label>
+                        <select id="faultFilterSelect" class="filterSelect" aria-label="Filter records by fault signature">
+                            <option value="ALL">All Telemetry Records (100% Stream)</option>
+                            <option value="NORMAL">Nominal Steady-State (Passed)</option>
+                            <option value="ELECTRICAL_SPIKE">Dynamic Outlier / 45 µA Spikes</option>
+                            <option value="THERMAL_DRIFT">Latent Thermal Creep / Drift</option>
+                            <option value="ELECTRICAL_SHORT_CIRCUIT">Catastrophic Short Circuits (OCP)</option>
+                        </select>
+                        <button id="btnFetchHistory" class="filterBtn" aria-label="Fetch Filtered History">
+                            <span>🔄</span> Query Records
+                        </button>
+                    </div>
+                    <div id="historyCountBadge" class="historyCountBadge">Records Loaded: 0</div>
+                </div>
+
+                <!-- Recent Events & Fault Timeline Ribbon -->
+                <div class="timelineRibbonContainer">
+                    <div class="timelineTitle">⏱️ MISSION EVENT TIMELINE & AUDIT LOG:</div>
+                    <div id="timelineRibbon" class="timelineRibbon">
+                        <div class="timelineNode active">Chamber Online (125°C)</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <footer class="dashboardFooter">
+                <span>PROJECT ARJUNA 2.0 &bull; HORIZON UNBOUND</span>
+                <span>AI-DRIVEN ANOMALY DETECTION FOR ISRO AEROSPACE ELECTRONICS (SIH 26170)</span>
+                <span id="footerStatus">SYSTEM READY</span>
+            </footer>
+        </section>
+    </div>
+
+    <!-- Application Script -->
+    <script src="script.js?v=6"></script>
+</body>
+</html>
