@@ -69,7 +69,7 @@ graph TD
 - **Early Rejection Rule**:
   Quarantine triggered if:
   $$\hat{I}_{DDQ}(168h) > 50.0\ \mu\text{A} \quad \text{OR} \quad \hat{I}_{DDQ}(168h) > (\mu_{lot} + 3\sigma_{lot})$$
-- **Empirical Accuracy**: Mean Absolute Error (MAE) = **0.583 µA**, Root Mean Squared Error (RMSE) = **0.825 µA**, saving an average of **164.4 burn-in hours (97.9%)** per defective part.
+- **Empirical Accuracy**: Mean Absolute Error (MAE) = **0.567 µA**, Root Mean Squared Error (RMSE) = **0.803 µA**, saving an average of **165.2 burn-in hours (98.3%)** per defective part.
 
 ### 2.3 Module C: Tabular Cumulative Sum (CUSUM)
 - **Recursive Formula**:

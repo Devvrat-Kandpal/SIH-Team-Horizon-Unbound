@@ -22,7 +22,7 @@ During satellite manufacturing, microcircuits undergo **High-Temperature Operati
 ### 1.2 The Project ARJUNA Solution
 Project ARJUNA is an **AI-driven dynamic burn-in telemetry and screening engine**:
 1. **Module A (Multivariate Outlier Screening)**: Employs an **Isolation Forest** paired with a lot-relative statistical $3\sigma$ gate to catch anomalous parts like the **45.2 µA outlier** at the first checkpoint, rejecting them despite passing static thresholds.
-2. **Module B (168-Hour Endpoint Drift Forecasting)**: Uses an **Ordinary Least Squares (OLS)** linear trend model evaluated at hour 24. It predicts the expected leakage current at hour 168 (**MAE = 0.567 µA**). If the trajectory breaches dynamic safety boundaries, it executes **Early Rejection**, saving **144 to 164.4 hours (up to 97.9%)** of expensive chamber time.
+2. **Module B (168-Hour Endpoint Drift Forecasting)**: Uses an **Ordinary Least Squares (OLS)** linear trend model evaluated at hour 24. It predicts the expected leakage current at hour 168 (**MAE = 0.567 µA**). If the trajectory breaches dynamic safety boundaries, it executes **Early Rejection**, saving **144 to 165.2 hours (up to 98.3%)** of expensive chamber time.
 3. **Module C (Latent Parametric Creep Detection)**: A stateful **Tabular Cumulative Sum (CUSUM)** filter that accumulates micro-shifts in leakage. Features a fixed noise allowance ($k=0.5\ \mu\text{A}$) and a per-DUT auto-baseline over its first 15 readings, making it invariant to healthy lot spread (0 false trips on 1,000 nominal cycles).
 4. **Mission Criticality Architecture**: Complies with **NASA EEE-INST-002** with tiered decision intervals:
    - **Level 1 (COTS / Ground Support)**: $h = 7.0$ (relaxed tolerance)
@@ -39,9 +39,9 @@ Project ARJUNA is an **AI-driven dynamic burn-in telemetry and screening engine*
 - **Latent Outlier Spike**: $45.2\ \mu\text{A}$ (passes static 50.0 µA limit; rejected at $+30.08\sigma$)
 - **CUSUM Slack**: $k = 0.5\ \mu\text{A}$ ($k/\sigma \approx 0.43$)
 - **Decision Thresholds ($h$)**: Level 1 = $7.0$, Level 2 = $5.0$, Level 3 = $3.5$
-- **Early Rejection Savings**: Rejection at hour 24 saves $144\text{ hours}$ ($97.9\%$ chamber dwell time)
+- **Early Rejection Savings**: Rejection at hour 24 saves $144\text{ hours}$ ($85.7\%$ chamber dwell time)
 - **Defect Recall**: $100.00\%$ (zero missed defects on 7,500 evaluated synthetic vectors)
-- **In-Domain Drift Forecast MAE**: $0.567\ \mu\text{A}$ ($0.583\ \mu\text{A}$ in test baseline)
+- **In-Domain Drift Forecast MAE**: $0.567\ \mu\text{A}$ ($0.583\ \mu\text{A}$ in the preserved Phase-0 baseline run)
 - **Inference Latency**: $2.85\text{ ms}$ per telemetry frame
 - **Automated Test Suite**: 62 automated unit, API, WebSocket, security, and physics tests passing (100% green)
 
@@ -186,7 +186,7 @@ Even though $45.2\ \mu\text{A}$ is strictly below the legacy static datasheet th
 - Why $k = 0.5\ \mu\text{A}$ is fixed while $h$ changes with criticality.
 - The **Per-DUT Auto-Baseline** (first 15 readings) eliminating false positives from lot spread.
 - The **Ordinary Least Squares (OLS)** slope formula and how 24h data forecasts hour 168.
-- Economic impact: Saving 144 to 164.4 hours ($97.9\%$) of burn-in chamber time.
+- Economic impact: Saving 144 to 165.2 hours ($98.3\%$) of burn-in chamber time.
 
 #### Q&A for Member 4:
 
@@ -215,7 +215,7 @@ We evaluate this model at $t = 168\text{ hours}$. If the projected endpoint exce
 *Answer:*  
 "A full qualification run requires 168 hours. If a defective component begins creeping early, traditional protocols keep running the chamber until hour 168. By reliably diagnosing failure at hour 24:
 $$168\text{ hours} - 24\text{ hours} = 144\text{ hours saved}$$
-That represents an 85.7% saving on that specific test run, and under accelerated thermal creep tests up to 97.9% operational dwell time saved, drastically reducing chamber power and liquid nitrogen costs."
+That represents an 85.7% saving on that specific test run, and under accelerated thermal creep tests up to 98.3% operational dwell time saved, drastically reducing chamber power and liquid nitrogen costs."
 
 **Q6: What are the two interfaces in your Module B code and why do both exist?**  
 *Answer:*  
@@ -357,7 +357,7 @@ Together, they provide 360-degree anomaly coverage across both instantaneous and
 | **0:00 – 0:30** | The Space Qualification Problem | **Member 6** | Show live nominal dashboard (5V, 1.2A, 125°C, 10µA) | Why static screening (50µA) misses latent outliers in space-grade lots. |
 | **0:30 – 1:15** | The 45 µA Latent Outlier | **Member 3** | Member 1 clicks **"Inject Spike (45µA)"** | Passes static 50µA limit, but rejected at $+30.1\sigma$ by Module A. |
 | **1:15 – 1:50** | Explainable AI (XAI) Evidence | **Member 1** | Scroll down to Structured XAI Evidence Card | Auditable engineering facts: observed, mean, $\Delta\sigma$, dynamic limit, QA directive. |
-| **1:50 – 2:50** | 168h Drift Forecast & Criticality | **Member 4** | Click **"Reset"**, click **"Inject Thermal Drift"**, toggle to **Level 3** | Saves 144h chamber time (97.9%); NASA EEE-INST-002 tiered $h$ thresholds. |
+| **1:50 – 2:50** | 168h Drift Forecast & Criticality | **Member 4** | Click **"Reset"**, click **"Inject Thermal Drift"**, toggle to **Level 3** | Saves 144h chamber time (85.7%); NASA EEE-INST-002 tiered $h$ thresholds. |
 | **2:50 – 3:30** | Catastrophic Failure & OCP | **Member 2** | Member 1 clicks **"Inject Short Circuit"** | Voltage collapses to 0.4V, current clamps at 8.0A (OCP foldback physics). |
 | **3:30 – 4:10** | Cloud Sync, Security & Export | **Member 5** | Filter history table and click **"Export CSV"** | Supabase streaming, RLS security, 4-tier RBAC, offline resilience. |
 | **4:10 – 5:00** | Quantitative Benchmark Proof | **Member 6** | Show `evaluation_report.json` benchmark table | 100% recall, 0.567 µA MAE, 2.85ms latency, 62 automated tests green. |

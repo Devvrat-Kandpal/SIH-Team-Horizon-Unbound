@@ -154,7 +154,7 @@ A: The WebSocket payload includes an xai_evidence JSON object. The frontend inte
 
 ## 8. TESTING, BENCHMARKS & EDGE CASES (Owner: M6)
 
-**Q: What exactly do the 62 Pytest tests cover?**
+**Q: What exactly do the 70 Pytest tests cover?**
 A: - **Unit Tests**: Math logic (OLS calculation, CUSUM updates).
 - **Integration Tests**: FastAPI endpoints, DB write speeds.
 - **WebSocket Tests**: Simulating client handshakes and async payloads.

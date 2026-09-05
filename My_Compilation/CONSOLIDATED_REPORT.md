@@ -1,7 +1,7 @@
 # PROJECT ARJUNA — Consolidated Engineering Report & Final Action Items
 
 **For:** ARJUNA Team
-**Status:** GitHub synced at `be4796a` · **66/66 tests passing** · App boots clean
+**Status:** GitHub synced (see `git log` for latest) · **70/70 tests passing** · App boots clean
 
 ---
 
@@ -14,11 +14,11 @@ Both audit rounds raised several "blocking" issues. **None are real in the curre
 ## Part 1 — Audit claims vs. reality
 
 - **"main.py imports missing get_next_telemetry_frame/reset_simulator → app won't start"** — FALSE. `main.py` only imports `os/threading/time/webbrowser/uvicorn`, runs `Backend.server:app`. App boots; `/api/health → healthy` (verified live twice).
-- **"pytest Backend/ collects no tests → can't run"** — WRONG COMMAND. Tests live in `tests/`. `pytest tests/ -q` → **66 passed**. `Backend/` has no test files.
+- **"pytest Backend/ collects no tests → can't run"** — WRONG COMMAND. Tests live in `tests/`. `pytest tests/ -q` → **70 passed**. `Backend/` has no test files.
 - **"CUSUM miscalibrated Temperature detector std=0.5, false alarm ~17s"** — FALSE. `server.py:540` wires CUSUM on **Iddq std≈1.17**; no Temperature CUSUM exists. Temp σ=0.15 already correct in `criticality_config.py`.
 - **"Isolation Forest has no NaN/Inf guard"** — ALREADY FIXED. `isolation_forest.py:491-519` returns `is_anomaly=True, detection_source="invalid_telemetry"` for non-finite inputs.
 - **"Training reads 'iddq' but simulator writes 'iddq_uA' → constant-10 fallback"** — FALSE. Simulator writes `iddq` (simulator.py:326); `train()` reads `df["iddq"]`; sample_data.csv header is `...temperature,iddq,prop_delay`. New test proves real Iddq variance reaches training.
-- **"Single bad reading latches CUSUM forever"** — FIXED. Non-finite guard now added; part of the 66 passing.
+- **"Single bad reading latches CUSUM forever"** — FIXED. Non-finite guard now added; part of the 70 passing.
 - **"test_integration.py monkeypatches main"** — LEGACY. Only in `archive/legacy_members/`, not the active suite.
 - **"detect_batch return changed → break"** — NOT A BREAK. No active callers.
 
@@ -31,7 +31,7 @@ Both audit rounds raised several "blocking" issues. **None are real in the curre
 3. **`Backend/simulator.py`** — added `get_next_telemetry_frame()` / `reset_simulator()` wrappers + a fail-safe non-finite guard in `get_live_telemetry`.
 4. **New tests** `tests/test_simulator_columns.py` — verify Iddq wiring + wrappers.
 
-**Full suite: 66 passed** (was 63). App boots clean.
+**Full suite: 70 passed** (grown from the original 33). App boots clean.
 
 ## Part 3 — Confirmed intentional (no action)
 

@@ -75,7 +75,7 @@
 - **Member 4 (Time-Series AI Specialist)**:
   > *"Next is the most costly challenge in aerospace manufacturing: latent parametric creep. A component might appear healthy at hour 10, but its subthreshold leakage current is slowly degrading.  
   > Watch Module B in action: our Ordinary Least Squares drift predictor computes the degradation trajectory in virtual burn-in hours. By hour 24, ARJUNA accurately forecasts that by hour 168, this component will reach 78 µA, severely violating space standards.  
-  > We trigger Early Rejection at hour 24. That saves 144 hours of chamber operational time per component—a 97.9% reduction in burn-in chamber energy, throughput bottleneck, and facility costs."*
+  > We trigger Early Rejection at hour 24. That saves 144 hours of chamber operational time per component (85.7% of the 168-hour window); the measured benchmark average across components is 165.2 hours (98.3%) — a reduction in burn-in chamber energy, throughput bottleneck, and facility costs."*
 
 ---
 
@@ -111,7 +111,7 @@
   > - Defect Recall: 100.00% with zero missed defects within this simulator — per-segment: 100% instantaneous outliers, 100% creep, 100% shorts.  
   > - 168h Drift Forecast Error (in-domain linear drift): Mean Absolute Error of 0.567 µA; MAE rises honestly to 1.4–9.4 µA under non-linear OOD regimes, which Module C CUSUM compensates for.  
   > - Inference Latency: 2.85 milliseconds per tick.  
-  > Project ARJUNA is fully tested with 62 passing automated tests (unit, API, WebSocket, security/RBAC, Supabase persistence, criticality, OOD generalization, threshold sensitivity, and adversarial telemetry), containerized with Docker, and completely traceable to ECSS-Q-ST-60-02C. Thank you, and we are ready for your questions."*
+  > Project ARJUNA is fully tested with 70 passing automated tests (unit, API, WebSocket, security/RBAC, Supabase persistence, criticality, OOD generalization, threshold sensitivity, and adversarial telemetry), containerized with Docker, and completely traceable to ECSS-Q-ST-60-02C. Thank you, and we are ready for your questions."*
 
 ---
 
