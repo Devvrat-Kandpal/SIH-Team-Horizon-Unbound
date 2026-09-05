@@ -83,17 +83,18 @@ CREATE POLICY "Allow public read access to events"
     TO anon, authenticated
     USING (true);
 
--- Allow backend ingestion (permits anon & authenticated roles with valid API key to log telemetry)
+-- Allow backend ingestion (Restricts INSERT to authenticated or service_role)
+-- NOTE: For production, the FastAPI backend must use the service_role key to insert.
 DROP POLICY IF EXISTS "Allow ingestion into telemetry" ON public.telemetry_logs;
 CREATE POLICY "Allow ingestion into telemetry"
     ON public.telemetry_logs FOR INSERT
-    TO anon, authenticated
+    TO authenticated, service_role
     WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Allow ingestion into events" ON public.system_events;
 CREATE POLICY "Allow ingestion into events"
     ON public.system_events FOR INSERT
-    TO anon, authenticated
+    TO authenticated, service_role
     WITH CHECK (true);
 
 -- ==============================================================================

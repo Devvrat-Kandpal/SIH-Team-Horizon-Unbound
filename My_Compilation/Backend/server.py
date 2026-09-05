@@ -14,7 +14,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
 logger = logging.getLogger("project_arjuna.backend")
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
 
 # Add Member directories to Python path
 CURRENT_DIR = Path(__file__).resolve().parent
@@ -35,33 +37,33 @@ try:
     from Backend.database import get_recent_telemetry, insert_telemetry, log_event, telemetry_store
     from Backend.isolation_forest import LinearRegressionDriftPredictor, MultivariateAnomalyDetector
     from Backend.schemas import FaultInjectionRequest
-    from Backend.security import (
-        ALLOWED_ORIGINS,
-        get_security_status,
-        verify_operator_access,
-        verify_websocket_auth,
-    )
+    from Backend.security import ALLOWED_ORIGINS, get_security_status, verify_operator_access, verify_websocket_auth
     from Backend.simulator import ComponentSimulator
 except ImportError:
     from cusum_drift import DriftDetector
     from database import get_recent_telemetry, insert_telemetry, log_event, telemetry_store
     from isolation_forest import LinearRegressionDriftPredictor, MultivariateAnomalyDetector
     from schemas import FaultInjectionRequest
-    from security import (
-        ALLOWED_ORIGINS,
-        get_security_status,
-        verify_operator_access,
-        verify_websocket_auth,
-    )
+    from security import ALLOWED_ORIGINS, get_security_status, verify_operator_access, verify_websocket_auth
     from simulator import ComponentSimulator
 
     from criticality_config import CRITICALITY_CONFIG
 
 # Global Model & State
-model: MultivariateAnomalyDetector = None
-drift_predictor: LinearRegressionDriftPredictor = None
+# NOTE: These are lazily-initialized process globals, set in get_or_train_model() during
+# app lifespan. The explicit `None` sentinel is intentional (module load time); pyright is
+# told to ignore the false "None not assignable" / "None has no attribute" diagnostics.
+model: MultivariateAnomalyDetector = None  # type: ignore[assignment]
+drift_predictor: LinearRegressionDriftPredictor = None  # type: ignore[assignment]
 current_scenario = "nominal"
 burn_in_hours = 0
+
+# DESIGN NOTE — Single-DUT shared chamber state (intentional):
+# All WebSocket clients share one virtual burn-in chamber state (current_scenario,
+# burn_in_hours, _server_criticality_level). This models a single-DUT test bench where
+# every observer/operator sees the SAME chamber — a deliberate single-source-of-truth
+# design so fault injections, resets, and criticality changes are globally coherent.
+# Per-session / multi-DUT isolation is a future enhancement and is NOT implemented.
 
 # Server-side criticality level — single source of truth.
 # All WebSocket sessions read from this; the frontend is always synced back via telemetry.
@@ -90,7 +92,7 @@ TEAM_FAULT_SCENARIOS = {
 
 async def _persistence_worker() -> None:
     while True:
-        kind, payload = await persistence_queue.get()
+        kind, payload = await persistence_queue.get()  # type: ignore[attr-defined]
         try:
             if kind == "telemetry":
                 await asyncio.to_thread(insert_telemetry, payload)
@@ -99,7 +101,7 @@ async def _persistence_worker() -> None:
         except Exception:
             logger.exception("Persistence operation failed; live telemetry continues")
         finally:
-            persistence_queue.task_done()
+            persistence_queue.task_done()  # type: ignore[attr-defined]
 
 
 async def _enqueue_persistence(kind: str, payload) -> None:
@@ -177,8 +179,12 @@ def get_or_train_model():
     # Initialise Module B with the real lot statistics from the trained model
     lot_mean = model.lot_stats.get("mean_iddq", 10.0)
     lot_std = model.lot_stats.get("std_iddq", 1.17)
-    drift_predictor = LinearRegressionDriftPredictor(lot_mean_iddq=lot_mean, lot_std_iddq=lot_std)
-    logger.info("Drift predictor ready (lot mean %.2f uA, sigma %.2f uA)", lot_mean, lot_std)
+    drift_predictor = LinearRegressionDriftPredictor(
+        lot_mean_iddq=lot_mean, lot_std_iddq=lot_std
+    )
+    logger.info(
+        "Drift predictor ready (lot mean %.2f uA, sigma %.2f uA)", lot_mean, lot_std
+    )
     logger.info("Isolation Forest model ready")
     return model
 
@@ -250,7 +256,9 @@ async def status_check():
         active_fault = None
     return {
         "backend_status": "ONLINE",
-        "system_status": _last_telemetry.get("system_status", "ANOMALY" if active_fault else "NOMINAL"),
+        "system_status": _last_telemetry.get(
+            "system_status", "ANOMALY" if active_fault else "NOMINAL"
+        ),
         "operational": True,
         "active_fault": active_fault,
         "current_scenario": _requested_scenario,
@@ -300,7 +308,9 @@ async def inject_fault(request: Request):
     except Exception:
         return JSONResponse(status_code=422, content={"error": "Invalid JSON body"})
     if not isinstance(body, dict):
-        return JSONResponse(status_code=422, content={"error": "event_type is required"})
+        return JSONResponse(
+            status_code=422, content={"error": "event_type is required"}
+        )
     try:
         fault = FaultInjectionRequest(**body)
         event_type = fault.get_event_type()
@@ -309,10 +319,19 @@ async def inject_fault(request: Request):
 
     scenario = TEAM_FAULT_SCENARIOS.get(event_type)
     if not scenario:
-        return JSONResponse(status_code=400, content={"error": f"Unknown fault type: {event_type}"})
+        return JSONResponse(
+            status_code=400, content={"error": f"Unknown fault type: {event_type}"}
+        )
     _set_requested_scenario(scenario)
-    await _enqueue_persistence("event", (event_type, "HIGH", f"Fault injection requested: {event_type}"))
-    return {"ok": True, "active_fault": event_type, "fault_type": event_type, "scenario": scenario}
+    await _enqueue_persistence(
+        "event", (event_type, "HIGH", f"Fault injection requested: {event_type}")
+    )
+    return {
+        "ok": True,
+        "active_fault": event_type,
+        "fault_type": event_type,
+        "scenario": scenario,
+    }
 
 
 @app.post("/api/reset")
@@ -377,11 +396,17 @@ async def set_criticality(request: Request):
         body = await request.json()
     except Exception:
         return JSONResponse(
-            status_code=422, content={"error": "Request body must be valid JSON with 'criticality_level' key."}
+            status_code=422,
+            content={
+                "error": "Request body must be valid JSON with 'criticality_level' key."
+            },
         )
     if not isinstance(body, dict):
         return JSONResponse(
-            status_code=422, content={"error": "Request body must be a JSON object with 'criticality_level'."}
+            status_code=422,
+            content={
+                "error": "Request body must be a JSON object with 'criticality_level'."
+            },
         )
     level = body.get("criticality_level")
     # Strict validation — must be a Python int in {1, 2, 3}. Reject floats, strings, None, NaN.
@@ -439,7 +464,9 @@ async def serve_js():
 
 @app.get("/chart_v4.js")
 async def serve_chart():
-    return no_cache_file(str(FRONTEND_DIR / "chart_v4.js"), media_type="application/javascript")
+    return no_cache_file(
+        str(FRONTEND_DIR / "chart_v4.js"), media_type="application/javascript"
+    )
 
 
 @app.get("/space.jpg")
@@ -457,12 +484,16 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
-        logger.info("WebSocket client connected; active=%s", len(self.active_connections))
+        logger.info(
+            "WebSocket client connected; active=%s", len(self.active_connections)
+        )
 
     def disconnect(self, websocket: WebSocket):
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
-        logger.info("WebSocket client disconnected; active=%s", len(self.active_connections))
+        logger.info(
+            "WebSocket client disconnected; active=%s", len(self.active_connections)
+        )
 
     async def broadcast(self, message: dict):
         for connection in list(self.active_connections):
@@ -493,9 +524,15 @@ async def websocket_endpoint(websocket: WebSocket):
     tick_count = 0
     last_scenario = "nominal"
 
-    lot_mean = model.lot_stats.get("mean_iddq", 10.0) if model and model.lot_stats else 10.0
-    lot_std = model.lot_stats.get("std_iddq", 1.17) if model and model.lot_stats else 1.17
-    drift_predictor = LinearRegressionDriftPredictor(lot_mean_iddq=lot_mean, lot_std_iddq=lot_std)
+    lot_mean = (
+        model.lot_stats.get("mean_iddq", 10.0) if model and model.lot_stats else 10.0
+    )
+    lot_std = (
+        model.lot_stats.get("std_iddq", 1.17) if model and model.lot_stats else 1.17
+    )
+    drift_predictor = LinearRegressionDriftPredictor(
+        lot_mean_iddq=lot_mean, lot_std_iddq=lot_std
+    )
 
     # ComponentSimulator and CUSUM are initialised with the current server criticality level.
     # criticality_level is read from the global at each tick so live updates propagate.
@@ -605,40 +642,77 @@ async def websocket_endpoint(websocket: WebSocket):
                 # Couple Iddq and propagation delay to junction temperature and supply voltage via Arrhenius & CMOS physics
                 t_kelvin = sim_t + 273.15
                 t0_kelvin = 125.0 + 273.15
-                thermal_ratio = math.exp(component_sim.Ea_kB * (1.0 / t0_kelvin - 1.0 / t_kelvin))
+                thermal_ratio = math.exp(
+                    component_sim.Ea_kB * (1.0 / t0_kelvin - 1.0 / t_kelvin)
+                )
                 sim_iddq = round(10.0 * thermal_ratio + random.gauss(0, 0.15), 2)
+                # H1 Clamp: Enforces a physically defensible lot-population bound representing
+                # a pre-screened HTOL lot (±15% around nominal 10µA).
                 sim_iddq = max(9.0, min(11.5, sim_iddq))
-                sim_pd = round(4.50 + 0.008 * (sim_t - 125.0) - 0.05 * (sim_v - 5.0) + random.uniform(-0.04, 0.04), 3)
+                sim_pd = round(
+                    4.50
+                    + 0.008 * (sim_t - 125.0)
+                    - 0.05 * (sim_v - 5.0)
+                    + random.uniform(-0.04, 0.04),
+                    3,
+                )
 
             elif current_scenario == "isro_outlier":
                 # ISRO prompt: 45 uA leakage in 10 uA lot - caught at 24h check
                 sim_t, sim_v, sim_c = component_sim.step(dt=1.0, mode="normal")
                 t_kelvin = sim_t + 273.15
                 t0_kelvin = 125.0 + 273.15
-                thermal_ratio = math.exp(component_sim.Ea_kB * (1.0 / t0_kelvin - 1.0 / t_kelvin))
+                thermal_ratio = math.exp(
+                    component_sim.Ea_kB * (1.0 / t0_kelvin - 1.0 / t_kelvin)
+                )
                 sim_iddq = round(45.2 * thermal_ratio + random.uniform(-0.5, 0.5), 2)
-                sim_pd = round(4.50 + 0.008 * (sim_t - 125.0) - 0.05 * (sim_v - 5.0) + 0.1, 3)
+                sim_pd = round(
+                    4.50 + 0.008 * (sim_t - 125.0) - 0.05 * (sim_v - 5.0) + 0.1, 3
+                )
 
             elif current_scenario == "thermal_drift":
-                # Latent creep — MODULE B core scenario: Iddq climbs with thermal creep
-                # Uses Member 2's thermal RC drift model with accelerated drift_time scaling
-                # (10x burn_in_hours compression) to demonstrate 168h qualification in live demo
+                # Latent creep - MODULE B core scenario: Iddq climbs with thermal creep
+                # Uses Member 2's thermal RC drift model with explicit accelerated scaling.
+                # NOTE: DEMO_ACCELERATION_FACTOR is an intentional, documented demonstration mode
+                # to visibly compress 168h of thermal state into a 6-minute live presentation.
+                # Module B's regression axis (burn_in_hours) remains uncompressed for scientific integrity.
+                DEMO_ACCELERATION_FACTOR = 10.0
                 sim_t, sim_v, sim_c = component_sim.step(
-                    dt=1.0, mode="drift", drift_time=burn_in_hours * 10.0, drift_rate=0.005
+                    dt=1.0,
+                    mode="drift",
+                    drift_time=burn_in_hours * DEMO_ACCELERATION_FACTOR,
+                    drift_rate=0.005,
                 )
                 t_kelvin = sim_t + 273.15
                 t0_kelvin = 125.0 + 273.15
-                thermal_ratio = math.exp(component_sim.Ea_kB * (1.0 / t0_kelvin - 1.0 / t_kelvin))
+                thermal_ratio = math.exp(
+                    component_sim.Ea_kB * (1.0 / t0_kelvin - 1.0 / t_kelvin)
+                )
                 drift_creep = 0.45 * burn_in_hours
-                sim_iddq = round(min(80.0, (10.0 + drift_creep) * thermal_ratio + random.gauss(0, 0.05)), 2)
+                sim_iddq = round(
+                    min(
+                        80.0,
+                        (10.0 + drift_creep) * thermal_ratio + random.gauss(0, 0.05),
+                    ),
+                    2,
+                )
                 sim_pd = round(
-                    min(6.5, 4.50 + 0.008 * (sim_t - 125.0) - 0.05 * (sim_v - 5.0) + 0.015 * burn_in_hours), 3
+                    min(
+                        6.5,
+                        4.50
+                        + 0.008 * (sim_t - 125.0)
+                        - 0.05 * (sim_v - 5.0)
+                        + 0.015 * burn_in_hours,
+                    ),
+                    3,
                 )
 
             elif current_scenario == "electrical_short":
                 # Severe OCP foldback voltage collapse + current surge modeled by Member 2
                 sim_t, sim_v, sim_c = component_sim.step(dt=1.0, mode="short")
-                sim_iddq, sim_pd = component_sim.compute_iddq_and_prop_delay(sim_t, sim_v, mode="short")
+                sim_iddq, sim_pd = component_sim.compute_iddq_and_prop_delay(
+                    sim_t, sim_v, mode="short"
+                )
 
             # 2. RUN MEMBER 3's MODULE A: MULTIVARIATE ISOLATION FOREST INFERENCE
             # Pass active_criticality so the criticality-aware score gate is applied.
@@ -669,11 +743,17 @@ async def websocket_endpoint(websocket: WebSocket):
             is_anomaly_flag = bool(ml_result.get("is_anomaly", False))
             raw_score = float(ml_result.get("raw_score", 0.0))
             cusum_drift_flag = bool(cusum_alert)
-            short_signature = is_anomaly_flag and raw_score < 0.0 and sim_c > 4.0 and sim_v < 2.0
+            short_signature = (
+                is_anomaly_flag and raw_score < 0.0 and sim_c > 4.0 and sim_v < 2.0
+            )
 
             if short_signature:
                 fault_type = "ELECTRICAL_SHORT_CIRCUIT"
-            elif is_anomaly_flag and cusum_drift_flag and current_scenario == "thermal_drift":
+            elif (
+                is_anomaly_flag
+                and cusum_drift_flag
+                and current_scenario == "thermal_drift"
+            ):
                 fault_type = "THERMAL_DRIFT"
             elif is_anomaly_flag:
                 fault_type = "ELECTRICAL_SPIKE"
@@ -682,7 +762,9 @@ async def websocket_endpoint(websocket: WebSocket):
 
             # 6. Construct Unified Telemetry + AI Response Payload (Modules A, B + Member 2 & 4)
             p_val = ml_result.get("power", round(sim_v * sim_c, 4))
-            r_val = ml_result.get("dynamic_resistance", round(sim_v / (sim_c + 1e-6), 3))
+            r_val = ml_result.get(
+                "dynamic_resistance", round(sim_v / (sim_c + 1e-6), 3)
+            )
             z_val = ml_result.get("iddq_zscore", 0.0)
 
             telemetry_payload = {
@@ -705,11 +787,17 @@ async def websocket_endpoint(websocket: WebSocket):
                 "fault_type": fault_type,
                 "lot_mean_iddq": float(ml_result.get("lot_mean_iddq", 10.0)),
                 "lot_std_iddq": float(ml_result.get("lot_std_iddq", 1.17)),
-                "qa_justification": str(ml_result.get("qa_justification", "QA STATUS [PASSED]")),
+                "qa_justification": str(
+                    ml_result.get("qa_justification", "QA STATUS [PASSED]")
+                ),
                 # MODULE B: Drift Predictor outputs
                 "drift_slope_ua_h": float(drift_result.get("drift_slope_ua_h", 0.0)),
-                "forecast_168h_uA": float(drift_result.get("forecast_168h_uA", sim_iddq)),
-                "forecast_168h_label": str(drift_result.get("forecast_168h_label", "COLLECTING DATA")),
+                "forecast_168h_uA": float(
+                    drift_result.get("forecast_168h_uA", sim_iddq)
+                ),
+                "forecast_168h_label": str(
+                    drift_result.get("forecast_168h_label", "COLLECTING DATA")
+                ),
                 "drift_status": str(drift_result.get("drift_status", "INITIALIZING")),
                 "drift_r2": float(drift_result.get("drift_r2", 0.0)),
                 "early_reject_b": bool(drift_result.get("early_reject_b", False)),

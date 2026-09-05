@@ -1,6 +1,7 @@
 import os
 import sys
 import warnings
+from typing import Any
 
 import joblib
 import numpy as np
@@ -63,7 +64,9 @@ class LinearRegressionDriftPredictor:
         self._burn_hours.clear()
         self._iddq.clear()
 
-    def predict_168h(self, value_0h: float, value_24h: float, actual_168h: float = None) -> dict:
+    def predict_168h(
+        self, value_0h: float, value_24h: float, actual_168h: float | None = None
+    ) -> dict:
         """
         Strict ISRO Module B interface: predicts 168h Iddq purely from 0h and 24h measurements.
         Computes Mean Absolute Error (MAE) if actual ground truth is provided.
@@ -73,7 +76,9 @@ class LinearRegressionDriftPredictor:
 
         dynamic_limit_ua = self.lot_mean + self.dynamic_sigma * self.lot_std
 
-        early_reject = (forecast_168h > self.datasheet_limit_ua) or (forecast_168h > dynamic_limit_ua)
+        early_reject = (forecast_168h > self.datasheet_limit_ua) or (
+            forecast_168h > dynamic_limit_ua
+        )
         mae = abs(forecast_168h - actual_168h) if actual_168h is not None else 0.0
 
         result = {
@@ -116,12 +121,19 @@ class LinearRegressionDriftPredictor:
             return self._initializing_result(iddq_uA, n)
 
         # --- OLS Linear Regression: Iddq = slope * hours + intercept ---
-        slope, intercept, r_value, _, _ = linregress(self._burn_hours, self._iddq)
+        # Coerce the scipy LinregressResult named-tuple fields to concrete floats so both
+        # the physics math and static type-checking are unambiguous.
+        _lr: Any = linregress(self._burn_hours, self._iddq)
+        slope = float(_lr.slope)
+        intercept = float(_lr.intercept)
+        r_value = float(_lr.rvalue)
         r2 = float(r_value**2) if not np.isnan(r_value) else 0.0
         raw_forecast = intercept + slope * self.forecast_target_h
         recent_mean = float(np.mean(self._iddq[-min(len(self._iddq), 8) :]))
         # Robust shrinkage forecast with physical baseline floor for 125C silicon HTOL
-        forecast_168h = max(self.lot_mean * 0.5, (1.0 - r2) * recent_mean + r2 * raw_forecast)
+        forecast_168h = max(
+            self.lot_mean * 0.5, (1.0 - r2) * recent_mean + r2 * raw_forecast
+        )
 
         # Current projected drift rate (µA per hour)
         drift_rate = slope
@@ -134,8 +146,12 @@ class LinearRegressionDriftPredictor:
         # Statistically significant drift requiring early rejection:
         # Requires actual trending correlation (R2 >= 0.25 and positive drift_rate > 0.01 uA/h)
         # OR current physical breach of datasheet limit (50 uA)
-        has_significant_trend = (r2 >= 0.25 and drift_rate > 0.01) or (iddq_uA > self.datasheet_limit_ua)
-        early_reject = bool(will_violate_static and has_significant_trend)
+        has_significant_trend = (r2 >= 0.25 and drift_rate > 0.01) or (
+            iddq_uA > self.datasheet_limit_ua
+        )
+        early_reject = bool(
+            (will_violate_static or will_violate_dynamic) and has_significant_trend
+        )
 
         # Drift status label
         abs_rate = abs(drift_rate)
@@ -151,7 +167,7 @@ class LinearRegressionDriftPredictor:
         # 168h forecast label
         if will_violate_static and has_significant_trend:
             forecast_label = f"{forecast_168h:.2f} µA (VIOLATION)"
-        elif will_violate_dynamic and has_significant_trend:
+        elif will_violate_dynamic or iddq_uA > dynamic_limit_ua:
             forecast_label = f"{forecast_168h:.2f} µA (WARNING)"
         else:
             forecast_label = f"{forecast_168h:.2f} µA (SAFE)"
@@ -201,7 +217,14 @@ class MultivariateAnomalyDetector:
     - Generates Explainable AI (XAI) justifications for ISRO QA inspectors.
     """
 
-    def __init__(self, contamination=0.001, n_estimators=40, random_state=42, use_engineered_features=True, n_jobs=-1):
+    def __init__(
+        self,
+        contamination=0.001,
+        n_estimators=40,
+        random_state=42,
+        use_engineered_features=True,
+        n_jobs=-1,
+    ):
         self.contamination = contamination
         self.n_estimators = n_estimators
         self.random_state = random_state
@@ -209,7 +232,7 @@ class MultivariateAnomalyDetector:
         self.n_jobs = n_jobs
 
         self.model = IsolationForest(
-            contamination=self.contamination,
+            contamination=self.contamination,  # type: ignore[arg-type]
             n_estimators=self.n_estimators,
             random_state=self.random_state,
             n_jobs=self.n_jobs,
@@ -217,7 +240,9 @@ class MultivariateAnomalyDetector:
         self.is_trained = False
         self.lot_stats = {}
 
-    def _extract_batch_features(self, voltage, current, temperature, iddq=None, prop_delay=None):
+    def _extract_batch_features(
+        self, voltage, current, temperature, iddq=None, prop_delay=None
+    ):
         """
         Vectorized feature matrix generation for training and batch datasets.
         """
@@ -258,10 +283,26 @@ class MultivariateAnomalyDetector:
         voltage = df["voltage"].values
         current = df["current"].values
         temperature = df["temperature"].values
-        iddq = df["iddq"].values if "iddq" in df.columns else np.full_like(voltage, 10.0)
-        prop_delay = df["prop_delay"].values if "prop_delay" in df.columns else np.full_like(voltage, 4.5)
+        iddq = (
+            df["iddq"].values if "iddq" in df.columns else np.full_like(voltage, 10.0)
+        )
+        prop_delay = (
+            df["prop_delay"].values
+            if "prop_delay" in df.columns
+            else np.full_like(voltage, 4.5)
+        )
 
-        features = self._extract_batch_features(voltage, current, temperature, iddq, prop_delay)
+        # Coerce pandas .values (ArrayLike/ExtensionArray) to concrete numpy arrays.
+        # Numerically identical, but eliminates numpy type-stub ambiguity (np.mean/np.std).
+        voltage = np.asarray(voltage)
+        current = np.asarray(current)
+        temperature = np.asarray(temperature)
+        iddq = np.asarray(iddq)
+        prop_delay = np.asarray(prop_delay)
+
+        features = self._extract_batch_features(
+            voltage, current, temperature, iddq, prop_delay
+        )
         self.model.fit(features)
         self.is_trained = True
 
@@ -335,16 +376,16 @@ class MultivariateAnomalyDetector:
                 "observed_value": dynamic_res,
                 "baseline_mean": round(float(mean_v / (mean_c + 1e-6)), 3),
                 "baseline_std": 0.08,
-                "delta_sigma": round(float((dynamic_res - (mean_v / (mean_c + 1e-6))) / 0.08), 2),
+                "delta_sigma": round(
+                    float((dynamic_res - (mean_v / (mean_c + 1e-6))) / 0.08), 2
+                ),
                 "datasheet_limit": None,
                 "dynamic_limit": None,
             }
         )
 
         if not is_anomaly:
-            justification = (
-                "QA STATUS [PASSED]: Component operates within 3-sigma lot bounds and nominal ECSS screening limits."
-            )
+            justification = "QA STATUS [PASSED]: Component operates within 3-sigma lot bounds and nominal ECSS screening limits."
             structured_evidence = {
                 "verdict": "PASSED",
                 "fault_type": "NORMAL",
@@ -419,7 +460,15 @@ class MultivariateAnomalyDetector:
         }
         return justification, structured_evidence
 
-    def detect_spike(self, current, voltage, temp, iddq=10.0, prop_delay=4.5, criticality_level: int = 2):
+    def detect_spike(
+        self,
+        current,
+        voltage,
+        temp,
+        iddq=10.0,
+        prop_delay=4.5,
+        criticality_level: int = 2,
+    ):
         """
         Ultra-fast single-tick anomaly detection (<1ms) avoiding array stack allocations.
 
@@ -429,13 +478,45 @@ class MultivariateAnomalyDetector:
           - Level 1 (low-criticality):   score >= 0.65
         """
         if not self.is_trained:
-            raise RuntimeError("Model is not trained yet. Call train() or load_model() first.")
+            raise RuntimeError(
+                "Model is not trained yet. Call train() or load_model() first."
+            )
 
         v = float(voltage)
         c = float(current)
         t = float(temp)
         iq = float(iddq) if iddq is not None else 10.0
         pd_val = float(prop_delay) if prop_delay is not None else 4.5
+
+        # FAIL-SAFE INPUT VALIDATION (aerospace fail-closed).
+        # Corrupt / non-finite telemetry (NaN, ±Inf) MUST NOT be silently treated as a
+        # healthy inlier: a screening system must never pass a part on missing/corrupt
+        # sensor data. Only non-finite inputs hit this guard; all valid telemetry is
+        # unaffected. NaN/Inf previously propagated through IsolationForest into a NaN
+        # anomaly_score with is_anomaly=False (silent data corruption risk).
+        if not all(np.isfinite(x) for x in (v, c, t, iq, pd_val)):
+            return {
+                "is_anomaly": True,
+                "anomaly_score": 0.99,
+                "raw_score": -1.0,
+                "detection_source": "invalid_telemetry",
+                "criticality_level": criticality_level,
+                "iddq_uA": round(iq, 2) if np.isfinite(iq) else 0.0,
+                "voltage": round(v, 4) if np.isfinite(v) else 0.0,
+                "current": round(c, 4) if np.isfinite(c) else 0.0,
+                "temperature": round(t, 2) if np.isfinite(t) else 0.0,
+                "prop_delay": round(pd_val, 3) if np.isfinite(pd_val) else 0.0,
+                "power": 0.0,
+                "dynamic_resistance": 0.0,
+                "iddq_zscore": 0.0,
+                "lot_mean_iddq": round(float(self.lot_stats.get("mean_iddq", 10.0)), 2),
+                "lot_std_iddq": round(float(self.lot_stats.get("std_iddq", 1.17)), 2),
+                "qa_justification": (
+                    "FAIL-SAFE QUARANTINE: Non-finite or corrupt telemetry (NaN/Inf) received. "
+                    "Component flagged for sensor verification — not silently passed as healthy."
+                ),
+                "structured_evidence": None,
+            }
 
         if self.use_engineered_features:
             p = v * c
@@ -452,7 +533,7 @@ class MultivariateAnomalyDetector:
 
         # --- Hybrid decision logic ---
         if_flagged = raw_score < 0.0
-        z_safety = z_iddq > 7.0  # ≥7σ: catastrophic outlier, belt-and-suspenders
+        z_safety = abs(z_iddq) > 7.0  # ≥7σ: catastrophic outlier, belt-and-suspenders
         is_anomaly = bool(if_flagged or z_safety)
 
         # Blended anomaly score
@@ -485,7 +566,15 @@ class MultivariateAnomalyDetector:
         r = v / (c + 1e-6)
 
         qa_justification, structured_evidence = self._generate_qa_explainability(
-            v, c, t, iq, pd_val, is_anomaly, normalized_score, detection_source, criticality_level
+            v,
+            c,
+            t,
+            iq,
+            pd_val,
+            is_anomaly,
+            normalized_score,
+            detection_source,
+            criticality_level,
         )
 
         return {
@@ -526,7 +615,9 @@ class MultivariateAnomalyDetector:
             prop_delay=prop_delay,
             criticality_level=criticality_level,
         )
-        res["fault_type"] = res.get("structured_evidence", {}).get("fault_type", "NORMAL")
+        res["fault_type"] = res.get("structured_evidence", {}).get(
+            "fault_type", "NORMAL"
+        )
         return res
 
     def detect_batch(
@@ -545,13 +636,21 @@ class MultivariateAnomalyDetector:
         Returns (is_anomalies, normalized_scores, detection_sources).
         """
         if not self.is_trained:
-            raise RuntimeError("Model is not trained yet. Call train() or load_model() first.")
+            raise RuntimeError(
+                "Model is not trained yet. Call train() or load_model() first."
+            )
 
-        features = self._extract_batch_features(voltage_array, current_array, temp_array, iddq_array, prop_delay_array)
+        features = self._extract_batch_features(
+            voltage_array, current_array, temp_array, iddq_array, prop_delay_array
+        )
         raw_scores = self.model.decision_function(features)
 
         v = np.asarray(voltage_array, dtype=np.float32)
-        iq = np.full_like(v, 10.0, dtype=np.float32) if iddq_array is None else np.asarray(iddq_array, dtype=np.float32)
+        iq = (
+            np.full_like(v, 10.0, dtype=np.float32)
+            if iddq_array is None
+            else np.asarray(iddq_array, dtype=np.float32)
+        )
 
         mean_iddq = self.lot_stats.get("mean_iddq", 10.0)
         std_iddq = self.lot_stats.get("std_iddq", 1.17)
@@ -559,7 +658,7 @@ class MultivariateAnomalyDetector:
 
         # --- Hybrid decision logic (vectorized) ---
         if_flagged = raw_scores < 0.0
-        z_safety = z_iddq > 7.0
+        z_safety = np.abs(z_iddq) > 7.0
         base_anomaly = if_flagged | z_safety
 
         # Blended score
@@ -657,8 +756,12 @@ if __name__ == "__main__":
     reloaded_detector = MultivariateAnomalyDetector.load_model(model_file)
     print("Model serialization & reload: PASSED.")
 
-    print("\n[Test 1] ISRO Stated Prompt Challenge: Lot Avg=10uA, Part=45uA (Under 50uA Limit)...")
-    res_isro = reloaded_detector.detect_spike(current=1.20, voltage=5.00, temp=125.0, iddq=45.0)
+    print(
+        "\n[Test 1] ISRO Stated Prompt Challenge: Lot Avg=10uA, Part=45uA (Under 50uA Limit)..."
+    )
+    res_isro = reloaded_detector.detect_spike(
+        current=1.20, voltage=5.00, temp=125.0, iddq=45.0
+    )
     print(f"  -> Is Anomaly Detected: {res_isro['is_anomaly']} (Expected: True)")
     print(f"  -> Anomaly Score:       {res_isro['anomaly_score']}")
     print(f"  -> QA Explanation:      {res_isro['qa_justification']}")
@@ -677,7 +780,9 @@ if __name__ == "__main__":
             false_positives += 1
     latency = (time.perf_counter() - start_time) * 1000 / 1000.0
 
-    print(f"  -> False Positives: {false_positives} / 1,000 (False Alarm Rate: {false_positives / 10:.2f}%)")
+    print(
+        f"  -> False Positives: {false_positives} / 1,000 (False Alarm Rate: {false_positives / 10:.2f}%)"
+    )
     print(f"  -> Inference Latency: {latency:.4f} ms per sample (Target: <10ms)")
 
     print("\n[Test 3] Testing 100 Catastrophic Short Circuits...")
@@ -691,7 +796,9 @@ if __name__ == "__main__":
         if not res["is_anomaly"]:
             false_negatives += 1
 
-    print(f"  -> False Negatives (Missed Failures): {false_negatives} / 100 ({false_negatives}%)")
+    print(
+        f"  -> False Negatives (Missed Failures): {false_negatives} / 100 ({false_negatives}%)"
+    )
     print(f"  -> Detection Rate: {(100 - false_negatives)}%")
 
     print("\n=================================================================")

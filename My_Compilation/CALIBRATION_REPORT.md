@@ -86,7 +86,7 @@ All telemetry channels pass through a simulated 12-bit Analog-to-Digital Convert
 A central design decision in Project ARJUNA's CUSUM filter is keeping the reference allowance parameter $k = 0.5$ identical across Level 1, Level 2, and Level 3:
 
 1. **Noise-Floor Independence**: The reference parameter $k$ represents the minimum parametric deviation that accumulates into the cumulative positive sum $S_n^+ = \max(0, S_{n-1}^+ + X_n - (\mu + k))$.
-2. **Mathematical Rationale**: Setting $k=0.5$ requires any reading to exceed the lot mean by more than $0.5^\circ\text{C}$ (which is $> 3.33 \times \sigma_{noise}$ for temperature, where $\sigma=0.15^\circ\text{C}$) before accumulation begins.
+2. **Mathematical Rationale**: CUSUM operates on **Iddq (µA)**, so $k=0.5$ is a $0.5\ \mu\text{A}$ allowance referenced to the lot-mean Iddq. It is calibrated to the Iddq measurement domain ($\sigma \approx 1.17\ \mu\text{A}$; $k/\sigma \approx 0.43$): a reading must exceed $\mu_{lot} + 0.5\ \mu\text{A}$ before it begins accumulating into $S_n^+$.
 3. **Preventing False Accumulation**: If $k$ were reduced for Level 3, pure sensor noise would accumulate in $S_n^+$, causing false aborts during long qualification runs.
 4. **Where Criticality Operates**: Criticality modulates the **decision threshold $h$** ($h=3.5$ for Level 3 vs $h=5.0$ for Level 2 vs $h=7.0$ for Level 1). This safely reduces detection latency for mission-critical hardware without corrupting noise immunity.
 

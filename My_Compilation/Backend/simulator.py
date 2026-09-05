@@ -55,14 +55,24 @@ class ComponentSimulator:
     def __init__(self, criticality_level: int = 2) -> None:
         # Nominal Baseline Operating Point
         self.T_amb: float = 25.0  # Ambient Room Temp (°C)
-        self.T_junction: float = 125.0  # Initial Junction Temp — MIL-STD-883 static burn-in (°C)
+        self.T_junction: float = (
+            125.0  # Initial Junction Temp — MIL-STD-883 static burn-in (°C)
+        )
         self.V_source: float = 5.0  # Ideal DC Supply (V)
-        self.I_nominal: float = 1.15  # Functional baseline load (A) — 1.15A base + 0.05A leakage = 1.20A nominal
+        self.I_functional: float = 1.15  # Dynamic functional load (A)
+        self.I_static_blocks: float = (
+            0.04999  # Static bias/termination (A) - deliberately NOT physical leakage
+        )
+        # Total rail load = 1.15 + 0.04999 + 10uA = 1.20A nominal
 
         # Semiconductor Physical Constants
         self.Ea_kB: float = 4000.0  # Activation energy term (Ea / kB in Kelvin)
-        self.I_leak_base: float = 0.05  # Baseline leakage current at 125°C reference (A)
-        self.R_th: float = 16.667  # Thermal Resistance (°C/W) — calibrated for 125°C steady-state at 6.0W
+        self.I_leak_base: float = (
+            10e-6  # True DUT leakage current at 125°C reference (10 µA)
+        )
+        self.R_th: float = (
+            16.667  # Thermal Resistance (°C/W) — calibrated for 125°C steady-state at 6.0W
+        )
         self.C_th: float = 1.5  # Thermal Capacitance (J/°C)
 
         # Power Bench & Hardware Constraints
@@ -73,11 +83,15 @@ class ComponentSimulator:
         # Sensor & ADC Specs (12-bit ADCs)
         self.adc_bits: int = 12
         self.v_max: float = 10.0
-        self.t_max: float = 175.0  # Junction destruction ceiling — typical Si absolute max rating (°C)
+        self.t_max: float = (
+            175.0  # Junction destruction ceiling — typical Si absolute max rating (°C)
+        )
         self.i_max: float = 15.0
 
         # Reliability / Mission Criticality Metadata
-        self.criticality_level: int = criticality_level  # 1 (low) - 3 (mission-critical)
+        self.criticality_level: int = (
+            criticality_level  # 1 (low) - 3 (mission-critical)
+        )
 
         # State Tracking
         self.destroyed: bool = False  # Tracks if component has melted down
@@ -93,18 +107,28 @@ class ComponentSimulator:
         Reference point (T0) is 125°C, matching the static burn-in baseline."""
         t_kelvin = temp_c + 273.15
         t0_kelvin = 125.0 + 273.15
-        return self.I_leak_base * math.exp(self.Ea_kB * (1.0 / t0_kelvin - 1.0 / t_kelvin))
+        return self.I_leak_base * math.exp(
+            self.Ea_kB * (1.0 / t0_kelvin - 1.0 / t_kelvin)
+        )
 
     def quantize(self, val: float, max_val: float) -> float:
         """Public alias for 12-bit ADC quantization."""
         return self._quantize(val, max_val)
 
-    def step_telemetry(self, scenario: str = "nominal", dt: float = 1.0) -> Dict[str, Any]:
+    def step_telemetry(
+        self, scenario: str = "nominal", dt: float = 1.0
+    ) -> Dict[str, Any]:
         """Convenience method returning a comprehensive telemetry dictionary."""
-        mode = "short" if "short" in scenario.lower() else "drift" if "drift" in scenario.lower() else "normal"
+        mode = (
+            "short"
+            if "short" in scenario.lower()
+            else "drift" if "drift" in scenario.lower() else "normal"
+        )
         t, v, i = self.step(dt=dt, mode=mode)
         iddq, pd = self.compute_iddq_and_prop_delay(t, v, mode=mode)
-        status = "ANOMALY" if (mode != "normal" or iddq > 50.0 or v < 3.0) else "NOMINAL"
+        status = (
+            "ANOMALY" if (mode != "normal" or iddq > 50.0 or v < 3.0) else "NOMINAL"
+        )
         return {
             "temperature": t,
             "voltage": v,
@@ -121,17 +145,23 @@ class ComponentSimulator:
         drift_time: float = 0.0,
         drift_rate: float = 0.05,
         degradation_factor: float = 1.0,
-        scenario: str = None,
+        scenario: str | None = None,
     ) -> Tuple[float, float, float]:
         """
         Advances the simulation by dt seconds.
         Modes: 'normal', 'drift' (thermal degradation), 'short' (electrical short).
         """
         if scenario:
-            mode = "short" if "short" in scenario.lower() else "drift" if "drift" in scenario.lower() else "normal"
+            mode = (
+                "short"
+                if "short" in scenario.lower()
+                else "drift" if "drift" in scenario.lower() else "normal"
+            )
 
         if mode not in ("normal", "drift", "short"):
-            raise ValueError(f"Unknown mode: {mode!r}. Must be 'normal', 'drift', or 'short'.")
+            raise ValueError(
+                f"Unknown mode: {mode!r}. Must be 'normal', 'drift', or 'short'."
+            )
 
         # Euler Integration Sub-stepping to prevent numerical explosion
         num_sub_steps = 10
@@ -156,13 +186,17 @@ class ComponentSimulator:
             else:
                 # Normal or Thermal Drift mode
                 i_leakage = self._arrhenius_leakage(self.T_junction)
-                i_demand = self.I_nominal + i_leakage
+                i_demand = self.I_functional + self.I_static_blocks + i_leakage
                 i_actual = min(i_demand, self.I_limit)
                 v_actual = max(0.0, self.V_source - (i_actual * self.R_source))
 
             # 4. Thermal Dynamics (dT/dt = (P_in - P_out) / C_th)
             p_dissipated = v_actual * i_actual
-            r_effective = self.R_th * (1.0 + drift_rate * drift_time) if mode == "drift" else self.R_th
+            r_effective = (
+                self.R_th * (1.0 + drift_rate * drift_time)
+                if mode == "drift"
+                else self.R_th
+            )
             p_dissipated_heat = (self.T_junction - self.T_amb) / r_effective
 
             dT_dt = (p_dissipated - p_dissipated_heat) / self.C_th
@@ -198,13 +232,32 @@ class ComponentSimulator:
             iddq_val = random.uniform(85.0, 130.0)
             pd_val = random.uniform(9.0, 11.0)
         elif mode == "drift":
+            # DEGRADATION MODEL CLASSIFICATION:
+            # drift_factor is a LINEAR placeholder modeling simplified parametric drift
+            # for HTOL demonstration purposes. It is NOT a validated semiconductor
+            # aging/degradation law. Physical degradation mechanisms (NBTI, EM, TDDB)
+            # follow sub-linear power-law kinetics (t^n, n ~ 0.25-0.5) which are not
+            # implemented here. This is a clearly-scoped simulation assumption; see the
+            # OOD benchmark (evaluate_model.benchmark_ood_generalization) which quantifies
+            # Module B's behaviour when this linearity assumption is violated.
             drift_factor = 1.0 + 0.005 * drift_time
             iddq_val = 10.0 * thermal_ratio * drift_factor + random.gauss(0, 0.4)
-            pd_val = 4.50 + 0.008 * (temp - 125.0) - 0.05 * (volt - 5.0) + 0.02 * drift_time + random.gauss(0, 0.03)
+            pd_val = (
+                4.50
+                + 0.008 * (temp - 125.0)
+                - 0.05 * (volt - 5.0)
+                + 0.02 * drift_time
+                + random.gauss(0, 0.03)
+            )
         else:
             # Nominal lot variation (Gaussian jitter ~1.17 uA std)
             iddq_val = 10.0 * thermal_ratio + random.gauss(0, 1.15)
-            pd_val = 4.50 + 0.008 * (temp - 125.0) - 0.05 * (volt - 5.0) + random.uniform(-0.08, 0.08)
+            pd_val = (
+                4.50
+                + 0.008 * (temp - 125.0)
+                - 0.05 * (volt - 5.0)
+                + random.uniform(-0.08, 0.08)
+            )
 
         iddq_val = round(max(5.0, min(150.0, iddq_val)), 2)
         pd_val = round(max(3.0, min(15.0, pd_val)), 3)
@@ -222,13 +275,17 @@ class ComponentSimulator:
 _global_sim = ComponentSimulator()
 
 
-def get_live_telemetry(mode: str = "normal", seconds_elapsed: int = 0) -> Dict[str, str | float | int]:
+def get_live_telemetry(
+    mode: str = "normal", seconds_elapsed: int = 0
+) -> Dict[str, str | float | int]:
     """Returns a single real-time telemetry frame formatted for WebSocket transmission."""
     if mode != "short" and _global_sim.destroyed:
         _global_sim.reset()
 
     temp, volt, curr = _global_sim.step(dt=1.0, mode=mode, drift_time=seconds_elapsed)
-    iddq, pd_val = _global_sim.compute_iddq_and_prop_delay(temp, volt, mode=mode, drift_time=seconds_elapsed)
+    iddq, pd_val = _global_sim.compute_iddq_and_prop_delay(
+        temp, volt, mode=mode, drift_time=seconds_elapsed
+    )
     return {
         "timestamp": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
         "voltage": volt,
@@ -246,7 +303,7 @@ def generate_dataset(
     n_drift: int = 1000,
     n_short: int = 200,
     criticality_level: int = 2,
-    seed: int = None,
+    seed: int | None = None,
 ) -> None:
     """Generates sequential offline time-series datasets with continuous contiguous fault regions."""
     if seed is not None:
@@ -261,7 +318,16 @@ def generate_dataset(
         with open(filename, mode="w", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(
-                ["timestamp", "voltage", "current", "temperature", "iddq", "prop_delay", "criticality_level", "label"]
+                [
+                    "timestamp",
+                    "voltage",
+                    "current",
+                    "temperature",
+                    "iddq",
+                    "prop_delay",
+                    "criticality_level",
+                    "label",
+                ]
             )
 
             current_time = start_time
@@ -273,7 +339,9 @@ def generate_dataset(
                 t, v, i = sim.step(dt=1.0, mode="normal")
                 iq, pd_val = sim.compute_iddq_and_prop_delay(t, v, mode="normal")
                 ts_str = current_time.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
-                writer.writerow([ts_str, v, i, t, iq, pd_val, sim.criticality_level, "normal"])
+                writer.writerow(
+                    [ts_str, v, i, t, iq, pd_val, sim.criticality_level, "normal"]
+                )
                 current_time += float_to_timedelta(1.0)
                 step_idx += 1
 
@@ -283,7 +351,9 @@ def generate_dataset(
             # preventing short-circuit rows from being silently mislabeled as drift.
             logger.info("Writing %d contiguous drift rows...", n_drift)
             for drift_sec in range(n_drift):
-                t, v, i = sim.step(dt=1.0, mode="drift", drift_time=drift_sec, drift_rate=0.0008)
+                t, v, i = sim.step(
+                    dt=1.0, mode="drift", drift_time=drift_sec, drift_rate=0.0008
+                )
                 if sim.destroyed:
                     logger.warning(
                         "Component destroyed at drift_sec=%d — truncating drift phase early "
@@ -291,9 +361,22 @@ def generate_dataset(
                         drift_sec,
                     )
                     break
-                iq, pd_val = sim.compute_iddq_and_prop_delay(t, v, mode="drift", drift_time=drift_sec)
+                iq, pd_val = sim.compute_iddq_and_prop_delay(
+                    t, v, mode="drift", drift_time=drift_sec
+                )
                 ts_str = current_time.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
-                writer.writerow([ts_str, v, i, t, iq, pd_val, sim.criticality_level, "drift_anomaly"])
+                writer.writerow(
+                    [
+                        ts_str,
+                        v,
+                        i,
+                        t,
+                        iq,
+                        pd_val,
+                        sim.criticality_level,
+                        "drift_anomaly",
+                    ]
+                )
                 current_time += float_to_timedelta(1.0)
                 step_idx += 1
 
@@ -306,7 +389,18 @@ def generate_dataset(
                 t, v, i = sim.step(dt=1.0, mode="short")
                 iq, pd_val = sim.compute_iddq_and_prop_delay(t, v, mode="short")
                 ts_str = current_time.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
-                writer.writerow([ts_str, v, i, t, iq, pd_val, sim.criticality_level, "short_anomaly"])
+                writer.writerow(
+                    [
+                        ts_str,
+                        v,
+                        i,
+                        t,
+                        iq,
+                        pd_val,
+                        sim.criticality_level,
+                        "short_anomaly",
+                    ]
+                )
                 current_time += float_to_timedelta(1.0)
                 step_idx += 1
 
@@ -314,12 +408,27 @@ def generate_dataset(
             logger.info("Writing hidden ground truth records for 0h, 24h, 96h, 168h...")
             sim.reset()
             for target_h, label in [(0, "0h"), (24, "24h"), (96, "96h"), (168, "168h")]:
-                t, v, i = sim.step(dt=1.0, mode="drift", drift_time=target_h, drift_rate=0.0008)
-                iq, pd_val = sim.compute_iddq_and_prop_delay(t, v, mode="drift", drift_time=target_h)
-                ts_str = (current_time + float_to_timedelta(target_h * 3600)).strftime("%Y-%m-%dT%H:%M:%S.%f")[
-                    :-3
-                ] + "Z"
-                writer.writerow([ts_str, v, i, t, iq, pd_val, sim.criticality_level, f"{label}_record"])
+                t, v, i = sim.step(
+                    dt=1.0, mode="drift", drift_time=target_h, drift_rate=0.0008
+                )
+                iq, pd_val = sim.compute_iddq_and_prop_delay(
+                    t, v, mode="drift", drift_time=target_h
+                )
+                ts_str = (current_time + float_to_timedelta(target_h * 3600)).strftime(
+                    "%Y-%m-%dT%H:%M:%S.%f"
+                )[:-3] + "Z"
+                writer.writerow(
+                    [
+                        ts_str,
+                        v,
+                        i,
+                        t,
+                        iq,
+                        pd_val,
+                        sim.criticality_level,
+                        f"{label}_record",
+                    ]
+                )
                 step_idx += 1
 
     except OSError as exc:
@@ -330,14 +439,23 @@ def generate_dataset(
 
 
 def export_to_sqlite(
-    csv_filename: str = "sample_data.csv", db_filename: str = "burn_in.db", table_name: str = "telemetry"
+    csv_filename: str = "sample_data.csv",
+    db_filename: str = "burn_in.db",
+    table_name: str = "telemetry",
 ) -> None:
     """Exports generated CSV telemetry into a local SQLite database table (burn_in.db)."""
     import sqlite3
 
     if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", table_name):
-        raise ValueError(f"Invalid table name '{table_name}': must be alphanumeric/underscores only.")
-    logger.info("Exporting %s to SQLite database -> %s (table: %s)", csv_filename, db_filename, table_name)
+        raise ValueError(
+            f"Invalid table name '{table_name}': must be alphanumeric/underscores only."
+        )
+    logger.info(
+        "Exporting %s to SQLite database -> %s (table: %s)",
+        csv_filename,
+        db_filename,
+        table_name,
+    )
     conn = sqlite3.connect(db_filename)
     cursor = conn.cursor()
     cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
@@ -380,7 +498,9 @@ def export_to_sqlite(
     )
     conn.commit()
     conn.close()
-    logger.info("SQLite export complete: %d rows inserted into %s.", len(rows), db_filename)
+    logger.info(
+        "SQLite export complete: %d rows inserted into %s.", len(rows), db_filename
+    )
 
 
 def float_to_timedelta(seconds: float):
@@ -390,21 +510,41 @@ def float_to_timedelta(seconds: float):
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="SIH 26170 Physics-based Telemetry Simulator")
-    parser.add_argument("--output", "-o", default="sample_data.csv", help="Output CSV path")
-    parser.add_argument("--sqlite", "-s", default="burn_in.db", help="Output SQLite DB path (set empty string to skip)")
+    parser = argparse.ArgumentParser(
+        description="SIH 26170 Physics-based Telemetry Simulator"
+    )
+    parser.add_argument(
+        "--output", "-o", default="sample_data.csv", help="Output CSV path"
+    )
+    parser.add_argument(
+        "--sqlite",
+        "-s",
+        default="burn_in.db",
+        help="Output SQLite DB path (set empty string to skip)",
+    )
     parser.add_argument("--normal", type=int, default=10000, help="Normal steps count")
-    parser.add_argument("--drift", type=int, default=1000, help="Contiguous thermal drift steps")
-    parser.add_argument("--short", type=int, default=200, help="Short circuit event steps")
+    parser.add_argument(
+        "--drift", type=int, default=1000, help="Contiguous thermal drift steps"
+    )
+    parser.add_argument(
+        "--short", type=int, default=200, help="Short circuit event steps"
+    )
     parser.add_argument(
         "--criticality",
         type=int,
         default=2,
         choices=[1, 2, 3],
-        help="Mission criticality tier per EEE-INST-002 Table 2A (1=highest reliability, 3=lowest)",
+        help="Mission criticality tier per EEE-INST-002 Table 2A (1=low, 2=standard, 3=mission-critical)",
     )
-    parser.add_argument("--seed", type=int, default=None, help="Random seed for reproducible dataset generation")
-    parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Random seed for reproducible dataset generation",
+    )
+    parser.add_argument(
+        "--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"]
+    )
     return parser.parse_args()
 
 

@@ -37,7 +37,9 @@ def test_ablation_sudden_multivariate_break(trained_model):
     assert res["fault_type"] == "ELECTRICAL_SHORT_CIRCUIT"
 
 
-def test_ablation_combined_pipeline_outperforms_standalone_on_gradual_creep(trained_model):
+def test_ablation_combined_pipeline_outperforms_standalone_on_gradual_creep(
+    trained_model,
+):
     """
     Empirical proof: Gradual creep points close to the lot boundary (e.g. 13.0 uA)
     can slip past an un-accumulated single-tick detector, but the Combined Pipeline
@@ -54,7 +56,9 @@ def test_ablation_combined_pipeline_outperforms_standalone_on_gradual_creep(trai
 
     for val in creep_readings:
         # 1. Standalone IF
-        res_if = trained_model.predict(voltage=5.0, current=1.2, temperature=125.0, iddq=val)
+        res_if = trained_model.predict(
+            voltage=5.0, current=1.2, temperature=125.0, iddq=val
+        )
         if_flag = res_if["is_anomaly"]
         if if_flag:
             if_catches += 1
@@ -71,5 +75,9 @@ def test_ablation_combined_pipeline_outperforms_standalone_on_gradual_creep(trai
 
     # CUSUM accumulates persistent creep and flags it, lifting combined sensitivity
     assert cusum_catches > 0, "CUSUM must accumulate and catch persistent creep"
-    assert combined_catches >= if_catches, "Combined system recall must be >= standalone IF"
-    assert combined_catches >= cusum_catches, "Combined system recall must be >= standalone CUSUM"
+    assert (
+        combined_catches >= if_catches
+    ), "Combined system recall must be >= standalone IF"
+    assert (
+        combined_catches >= cusum_catches
+    ), "Combined system recall must be >= standalone CUSUM"

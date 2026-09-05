@@ -75,11 +75,16 @@ def test_websocket_interactive_commands():
         assert f1 is not None
 
         # 2. Trigger thermal drift scenario via WebSocket message
-        ws.send_text(json.dumps({"action": "set_scenario", "scenario": "thermal_drift"}))
+        ws.send_text(
+            json.dumps({"action": "set_scenario", "scenario": "thermal_drift"})
+        )
 
         # 3. Read subsequent frames to verify scenario transition
         f2 = ws.receive_json()
-        assert f2["scenario"] == "thermal_drift" or "thermal" in str(f2.get("scenario", "")).lower()
+        assert (
+            f2["scenario"] == "thermal_drift"
+            or "thermal" in str(f2.get("scenario", "")).lower()
+        )
 
         # 4. Send reset command
         ws.send_text(json.dumps({"action": "reset"}))

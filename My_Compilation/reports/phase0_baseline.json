@@ -1,0 +1,75 @@
+{
+  "timestamp": "2026-09-05T13:58:00+05:30",
+  "environment": {
+    "python_version": "3.14.4",
+    "git_commit": "633f7c06d0036f49b2b4c79f568b7d79b95f1da9",
+    "git_status": "6 modified files (Backend/isolation_forest.py, Backend/simulator.py, Frontend/index.html, Frontend/script.js, reports/ablation_study.md, reports/evaluation_report.json)",
+    "dependencies": {
+      "fastapi": "0.136.0",
+      "numpy": "2.4.6",
+      "scikit-learn": "1.9.0",
+      "pytest": "9.0.3",
+      "uvicorn": "0.48.0",
+      "joblib": "1.5.3",
+      "scipy": "1.17.0",
+      "pandas": "2.3.3"
+    }
+  },
+  "repository_inventory": {
+    "total_files": "Approx 80 files",
+    "extensions": {
+      ".py": 33,
+      ".pyc": 37,
+      ".md": 9,
+      ".csv": 5,
+      ".pdf": 5,
+      ".txt": 4,
+      ".json": 2,
+      ".yml": 2,
+      ".js": 2,
+      ".html": 1,
+      ".css": 1,
+      ".sql": 1,
+      ".joblib": 1,
+      ".db": 1
+    }
+  },
+  "architecture_authority_map": {
+    "authoritative_modules": [
+      "Backend.criticality_config",
+      "Backend.cusum_drift",
+      "Backend.database",
+      "Backend.isolation_forest",
+      "Backend.schemas",
+      "Backend.security",
+      "Backend.simulator",
+      "Backend.server"
+    ],
+    "duplicate_legacy_modules": [
+      "Model/isolation_forest.py",
+      "Model/cusum_drift.py",
+      "simulation/simulator.py"
+    ],
+    "import_analysis": "All production code (server.py), tests (tests/), and scripts (evaluate_model.py) exclusively import from the Backend/ directory. The Model/ and simulation/ directories are legacy and safe to deprecate/remove."
+  },
+  "baseline_metrics": {
+    "pytest": {
+      "total": 33,
+      "passed": 33,
+      "failed": 0
+    },
+    "evaluation_model": {
+      "recall": "100.00%",
+      "precision": "99.71%",
+      "f1_score": 0.9986,
+      "roc_auc": 0.9994,
+      "inference_latency_ms": 4.0566,
+      "mae_168h_ua": 0.583,
+      "rmse_ua": 0.825
+    },
+    "model_artifact": {
+      "path": "Model/isolation_forest_model.joblib",
+      "sha256": "f506aaf6a1b067a1d2ccec44614a886f8eeac5eac0fe803585323abf57d24e80"
+    }
+  }
+}

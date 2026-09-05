@@ -16,7 +16,7 @@
 | **3:15 – 3:55** | Mission Criticality & Latency | Switch Level 2 $\rightarrow$ Level 3 | Statistical defense of risk-weighted thresholds ($k=0.5$). |
 | **3:55 – 4:25** | Catastrophic Short Circuit | Click "Inject Short Circuit" | Multi-sensor voltage collapse and OCP foldback. |
 | **4:25 – 4:45** | Cloud Persistence & Security | Table view & Export CSV | Production Supabase streaming & API security. |
-| **4:45 – 5:00** | Quantitative Proof & Close | Show `reports/ablation_study.md` | 100% recall, 0 false negatives, 0.583 µA MAE. |
+| **4:45 – 5:00** | Quantitative Proof & Close | Show `reports/evaluation_report.json` & `reports/ablation_study.md` | 100% recall (validated synthetic domain), 0 in-simulator false negatives, 0.583 µA in-domain MAE. |
 
 ---
 
@@ -48,6 +48,11 @@
   > 5. Actionable QA recommendation: 'QUARANTINE_LOT_AND_EARLY_REJECT'.  
   > This provides complete regulatory auditability for ISRO quality assurance engineers."*
 
+> **DESIGN NOTE (multi-client):** All connected dashboards share one *single* virtual burn-in
+> chamber state (scenario, burn-in clock, criticality). This is intentional — every observer
+> sees the same chamber, so a fault injection or criticality change is globally coherent.
+> It is not a per-user-session simulator.
+
 ---
 
 ### Minute 2:15 – 3:15: Latent Drift Forecasting & 164-Hour Chamber Savings
@@ -66,7 +71,7 @@
   > - Level 1 for COTS and Ground Support ($h=7.0$).  
   > - Level 2 for Standard Flight Qualification ($h=5.0$).  
   > - Level 3 for Deep Space and Human-Rated Missions ($h=3.5$).  
-  > When we switch to Level 3, the decision threshold tightens immediately. Notice that our CUSUM noise allowance parameter k remains fixed at 0.5 across all levels. Why? Because k is calibrated to the physical sensor noise floor (0.15°C). Varying k would cause false alarms on normal noise; varying h safely accelerates detection latency for flight-critical hardware."*
+  > When we switch to Level 3, the decision threshold tightens immediately. Notice that our CUSUM noise allowance parameter k remains fixed at 0.5 across all levels. Why? Because CUSUM operates on Iddq, and k = 0.5 µA is calibrated to the Iddq measurement domain (σ ≈ 1.17 µA, k/σ ≈ 0.43) — tuned to catch small persistent latent shifts without false alarms on nominal lots. Varying k would alter that noise allowance; varying h safely accelerates detection latency for flight-critical hardware."*
 
 ---
 
@@ -87,11 +92,11 @@
 ### Minute 4:45 – 5:00: Empirical Proof & Closing
 - **Action**: Open `reports/evaluation_report.json` or display the benchmark summary table.
 - **Presenter 1 (Lead)**:
-  > *"To prove ARJUNA is not just a hackathon demo, we evaluated 7,500 unseen randomized operational vectors:  
-  > - Defect Recall: Exactly 100.00% with ZERO missed defects.  
-  > - 168h Drift Forecast Error: Mean Absolute Error of just 0.583 µA.  
-  > - Inference Latency: 4 milliseconds per tick.  
-  > Project ARJUNA is fully tested with 33 passing automated test suites, containerized with Docker, and completely traceable to ECSS-Q-ST-60-02C. Thank you, and we are ready for your questions."*
+  > *"To prove ARJUNA is not just a hackathon demo, we evaluated 7,500 unseen randomized operational vectors (all metrics are measured on the validated synthetic simulation domain, not real hardware):  
+  > - Defect Recall: Exactly 100.00% with ZERO missed defects within this simulator.  
+  > - 168h Drift Forecast Error (in-domain linear drift): Mean Absolute Error of just 0.583 µA; MAE rises to 1.4–9.4 µA under non-linear OOD regimes, which Module C CUSUM compensates for.  
+  > - Inference Latency: ~4 milliseconds per tick.  
+  > Project ARJUNA is fully tested with 57 passing automated test suites (unit, API, WebSocket, security/RBAC, Supabase persistence, criticality, OOD, and adversarial telemetry), containerized with Docker, and completely traceable to ECSS-Q-ST-60-02C. Thank you, and we are ready for your questions."*
 
 ---
 

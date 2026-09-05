@@ -2,6 +2,9 @@
 Model/isolation_forest.py — Canonical backward-compatibility shim.
 Authoritative source code is relocated to Backend/isolation_forest.py per canonical architecture.
 """
+# ruff: noqa: E402, F403, F401, I001
+# (intentional shim pattern: re-export the authoritative Backend implementation)
+
 import sys
 import os
 
@@ -13,6 +16,4 @@ from Backend.isolation_forest import *
 from Backend.isolation_forest import (
     MultivariateAnomalyDetector,
     LinearRegressionDriftPredictor,
-    train_isolation_forest,
-    evaluate_isolation_forest,
 )

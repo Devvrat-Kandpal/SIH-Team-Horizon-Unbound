@@ -1,0 +1,26 @@
+{
+  "include": [
+    "My_Compilation/Backend",
+    "My_Compilation/tests",
+    "My_Compilation/main.py",
+    "My_Compilation/evaluate_model.py"
+  ],
+  "exclude": [
+    "**/node_modules",
+    "**/.*",
+    "**/__pycache__",
+    "**/.pytest_cache",
+    "**/.ruff_cache",
+    "My_Compilation/archive",
+    "My_Compilation/Model",
+    "My_Compilation/simulation",
+    "My_Compilation/criticality_config.py"
+  ],
+  "extraPaths": [
+    "My_Compilation",
+    "My_Compilation/Backend"
+  ],
+  "typeCheckingMode": "basic",
+  "reportMissingModuleSource": "none",
+  "ignore": []
+}

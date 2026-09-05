@@ -29,6 +29,32 @@ ADMIN_KEY: str = os.getenv("ARJUNA_ADMIN_KEY", DEFAULT_ADMIN_KEY)
 QA_KEY: str = os.getenv("ARJUNA_QA_KEY", DEFAULT_QA_KEY)
 VIEWER_KEY: str = os.getenv("ARJUNA_VIEWER_KEY", DEFAULT_VIEWER_KEY)
 
+# Fail-closed production guard: never allow predictable default dev keys in production.
+# Recognizes both ENV and ENVIRONMENT (the security-standard env var names) so the guard
+# is robust regardless of which convention the deployment uses. Development / any other
+# environment logs a clear warning instead of hard-failing (preserves demo ergonomics).
+_environment = os.getenv("ENVIRONMENT", os.getenv("ENV", "development")).lower()
+_using_default_keys = (
+    API_KEY == DEFAULT_DEV_KEY
+    or ADMIN_KEY == DEFAULT_ADMIN_KEY
+    or QA_KEY == DEFAULT_QA_KEY
+    or VIEWER_KEY == DEFAULT_VIEWER_KEY
+)
+if _environment == "production":
+    if _using_default_keys:
+        raise RuntimeError(
+            "FATAL: Default hardcoded API keys are active in a production environment. "
+            "Set ARJUNA_API_KEY / ARJUNA_ADMIN_KEY / ARJUNA_QA_KEY / ARJUNA_VIEWER_KEY "
+            "environment variables before deployment. Refusing to start with guessable credentials."
+        )
+else:
+    if _using_default_keys:
+        logger.warning(
+            "SECURITY: Default dev API keys active (environment=%s). Override via "
+            "ARJUNA_*_KEY env vars before any non-demo deployment.",
+            _environment,
+        )
+
 # Approved origins for restricted CORS
 DEFAULT_ALLOWED_ORIGINS = [
     "http://127.0.0.1:8000",
@@ -37,7 +63,9 @@ DEFAULT_ALLOWED_ORIGINS = [
     "http://localhost:3000",
 ]
 RAW_ORIGINS = os.getenv("ALLOWED_ORIGINS") or os.getenv("FRONTEND_ORIGINS") or ""
-ALLOWED_ORIGINS: List[str] = [o.strip() for o in RAW_ORIGINS.split(",") if o.strip()] or DEFAULT_ALLOWED_ORIGINS
+ALLOWED_ORIGINS: List[str] = [
+    o.strip() for o in RAW_ORIGINS.split(",") if o.strip()
+] or DEFAULT_ALLOWED_ORIGINS
 
 # Security Headers & Query extractors
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
@@ -78,7 +106,13 @@ mutation_rate_limiter = SlidingWindowRateLimiter(max_requests=25, window_seconds
 
 def audit_log(action: str, user_role: str, client_ip: str, details: str = "") -> None:
     """Emits structured audit logs for security inspections and mission accountability."""
-    logger.info("AUDIT_SECURITY action=%s role=%s ip=%s details=%s", action, user_role, client_ip, details)
+    logger.info(
+        "AUDIT_SECURITY action=%s role=%s ip=%s details=%s",
+        action,
+        user_role,
+        client_ip,
+        details,
+    )
 
 
 def extract_key_from_request(request: Request) -> str | None:
@@ -119,7 +153,10 @@ def is_local_request(request: Request) -> bool:
     url_host = request.url.hostname or ""
 
     return (
-        any(origin.startswith(o) for o in ["http://127.0.0.1", "http://localhost", "http://testserver"])
+        any(
+            origin.startswith(o)
+            for o in ["http://127.0.0.1", "http://localhost", "http://testserver"]
+        )
         or client_ip in ("testclient", "127.0.0.1", "localhost")
         or "testserver" in host_header
         or "127.0.0.1" in host_header
@@ -152,7 +189,12 @@ async def authenticate_request(request: Request, required_roles: list[str]) -> d
         key = API_KEY
 
     if not key:
-        audit_log("AUTH_FAILURE", "unauthenticated", client_ip, f"missing_key on {request.url.path}")
+        audit_log(
+            "AUTH_FAILURE",
+            "unauthenticated",
+            client_ip,
+            f"missing_key on {request.url.path}",
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required. Provide 'X-API-Key' header or 'api_key' query parameter.",
@@ -160,12 +202,24 @@ async def authenticate_request(request: Request, required_roles: list[str]) -> d
 
     role = resolve_role_from_key(key)
     if not role:
-        audit_log("AUTH_FAILURE", "invalid_key", client_ip, f"invalid_key on {request.url.path}")
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid credentials.")
+        audit_log(
+            "AUTH_FAILURE",
+            "invalid_key",
+            client_ip,
+            f"invalid_key on {request.url.path}",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Invalid credentials."
+        )
 
     # Check role permissions against required_roles
     if role not in required_roles:
-        audit_log("RBAC_DENIED", role, client_ip, f"role {role} insufficient for {request.url.path}")
+        audit_log(
+            "RBAC_DENIED",
+            role,
+            client_ip,
+            f"role {role} insufficient for {request.url.path}",
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Access denied. Role '{role}' does not possess required permissions for this action.",
@@ -177,12 +231,16 @@ async def authenticate_request(request: Request, required_roles: list[str]) -> d
 
 async def verify_viewer_access(request: Request) -> dict:
     """Allows viewer, qa_inspector, operator, and admin."""
-    return await authenticate_request(request, required_roles=["viewer", "qa_inspector", "operator", "admin"])
+    return await authenticate_request(
+        request, required_roles=["viewer", "qa_inspector", "operator", "admin"]
+    )
 
 
 async def verify_qa_inspector_access(request: Request) -> dict:
     """Allows qa_inspector, operator, and admin."""
-    return await authenticate_request(request, required_roles=["qa_inspector", "operator", "admin"])
+    return await authenticate_request(
+        request, required_roles=["qa_inspector", "operator", "admin"]
+    )
 
 
 async def verify_operator_access(request: Request) -> dict:
@@ -195,7 +253,12 @@ async def verify_operator_access(request: Request) -> dict:
 
     # Enforce Rate Limiting
     if not mutation_rate_limiter.check(client_ip):
-        audit_log("RATE_LIMIT_EXCEEDED", "anonymous", client_ip, f"endpoint={request.url.path}")
+        audit_log(
+            "RATE_LIMIT_EXCEEDED",
+            "anonymous",
+            client_ip,
+            f"endpoint={request.url.path}",
+        )
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Rate limit exceeded for control endpoints (maximum 25 requests per minute).",
@@ -231,7 +294,10 @@ async def verify_websocket_auth(websocket: WebSocket) -> dict | None:
     origin = websocket.headers.get("origin") or ""
     host_header = websocket.headers.get("host", "").lower()
     is_local = (
-        any(origin.startswith(o) for o in ["http://127.0.0.1", "http://localhost", "http://testserver"])
+        any(
+            origin.startswith(o)
+            for o in ["http://127.0.0.1", "http://localhost", "http://testserver"]
+        )
         or client_ip in ("testclient", "127.0.0.1", "localhost")
         or "testserver" in host_header
         or "127.0.0.1" in host_header
@@ -251,13 +317,17 @@ async def verify_websocket_auth(websocket: WebSocket) -> dict | None:
 
     if not key:
         audit_log("WS_AUTH_FAILURE", "unauthenticated", client_ip, "missing_key")
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Authentication required")
+        await websocket.close(
+            code=status.WS_1008_POLICY_VIOLATION, reason="Authentication required"
+        )
         return None
 
     role = resolve_role_from_key(key)
     if not role:
         audit_log("WS_AUTH_FAILURE", "invalid_key", client_ip, "invalid_key")
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid credentials")
+        await websocket.close(
+            code=status.WS_1008_POLICY_VIOLATION, reason="Invalid credentials"
+        )
         return None
 
     audit_log("WS_AUTH_SUCCESS", role, client_ip, f"role={role}")

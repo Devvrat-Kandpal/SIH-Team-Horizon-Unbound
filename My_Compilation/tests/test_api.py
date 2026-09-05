@@ -68,7 +68,9 @@ def test_api_criticality_flow(client):
     assert initial["criticality_level"] in (1, 2, 3)
 
     # 2. Update to Level 3 (Mission-Critical)
-    res_update = client.post("/api/set-criticality", json={"criticality_level": 3}, headers=AUTH_HEADERS)
+    res_update = client.post(
+        "/api/set-criticality", json={"criticality_level": 3}, headers=AUTH_HEADERS
+    )
     assert res_update.status_code == 200
     data = res_update.json()
     assert data["ok"] is True
@@ -81,28 +83,42 @@ def test_api_criticality_flow(client):
     assert res_after.json()["criticality_level"] == 3
 
     # 4. Reject invalid criticality level (e.g. 99)
-    res_bad = client.post("/api/set-criticality", json={"criticality_level": 99}, headers=AUTH_HEADERS)
+    res_bad = client.post(
+        "/api/set-criticality", json={"criticality_level": 99}, headers=AUTH_HEADERS
+    )
     assert res_bad.status_code in (400, 422)
 
     # Reset back to Level 2
-    client.post("/api/set-criticality", json={"criticality_level": 2}, headers=AUTH_HEADERS)
+    client.post(
+        "/api/set-criticality", json={"criticality_level": 2}, headers=AUTH_HEADERS
+    )
 
 
 def test_api_inject_fault_and_reset(client):
     """Validates POST /api/inject-fault and POST /api/reset."""
     # 1. Inject ELECTRICAL_SPIKE
-    res_spike = client.post("/api/inject-fault", json={"fault_type": "ELECTRICAL_SPIKE"}, headers=AUTH_HEADERS)
+    res_spike = client.post(
+        "/api/inject-fault",
+        json={"fault_type": "ELECTRICAL_SPIKE"},
+        headers=AUTH_HEADERS,
+    )
     assert res_spike.status_code == 200
     assert res_spike.json()["ok"] is True
     assert res_spike.json()["fault_type"] == "ELECTRICAL_SPIKE"
 
     # 2. Inject THERMAL_DRIFT
-    res_drift = client.post("/api/inject-fault", json={"event_type": "THERMAL_DRIFT"}, headers=AUTH_HEADERS)
+    res_drift = client.post(
+        "/api/inject-fault", json={"event_type": "THERMAL_DRIFT"}, headers=AUTH_HEADERS
+    )
     assert res_drift.status_code == 200
     assert res_drift.json()["ok"] is True
 
     # 3. Reject invalid fault type
-    res_invalid = client.post("/api/inject-fault", json={"fault_type": "UNKNOWN_ALIEN_RAY"}, headers=AUTH_HEADERS)
+    res_invalid = client.post(
+        "/api/inject-fault",
+        json={"fault_type": "UNKNOWN_ALIEN_RAY"},
+        headers=AUTH_HEADERS,
+    )
     assert res_invalid.status_code in (400, 422)
 
     # 4. Reset chamber simulation

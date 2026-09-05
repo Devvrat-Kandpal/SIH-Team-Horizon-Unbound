@@ -28,7 +28,7 @@ except ImportError:
     httpx = None
 
 try:
-    from supabase import Client, create_client
+    from supabase import Client, create_client  # type: ignore[import-not-found]
 except ImportError:
     Client = Any
     create_client = None
@@ -54,7 +54,7 @@ class TelemetryStore:
         self._history: deque[dict[str, Any]] = deque(maxlen=history_limit)
         self._events: deque[dict[str, Any]] = deque(maxlen=events_limit)
         self._lock = Lock()
-        self.client: Client | None = None
+        self.client: Any = None
         self.http_client = None
         self.enabled: bool = os.getenv("SUPABASE_ENABLED", "false").lower() == "true"
 
@@ -71,7 +71,9 @@ class TelemetryStore:
             if create_client:
                 try:
                     self.client = create_client(self.url, self.key)
-                    logger.info("Supabase client initialized successfully for: %s", self.url)
+                    logger.info(
+                        "Supabase client initialized successfully for: %s", self.url
+                    )
                 except Exception as e:
                     self.client = None
                     self.last_error = str(e)
@@ -88,7 +90,9 @@ class TelemetryStore:
                         },
                         timeout=4.0,
                     )
-                    logger.info("Supabase PostgREST HTTP client active for: %s", self.url)
+                    logger.info(
+                        "Supabase PostgREST HTTP client active for: %s", self.url
+                    )
                 except Exception as he:
                     self.http_client = None
                     logger.warning("HTTP client init failed: %s", he)
@@ -96,7 +100,9 @@ class TelemetryStore:
     @property
     def available(self) -> bool:
         """True if Supabase client or PostgREST HTTP client is operational."""
-        return (self.client is not None or self.http_client is not None) and bool(self.url and self.key)
+        return (self.client is not None or self.http_client is not None) and bool(
+            self.url and self.key
+        )
 
     def get_status(self) -> dict[str, Any]:
         """Returns persistence status view."""
@@ -114,7 +120,11 @@ class TelemetryStore:
     @staticmethod
     def _format_telemetry_payload(telemetry: dict[str, Any]) -> dict[str, Any]:
         """Formats telemetry to strictly match migrations/supabase_schema.sql."""
-        iddq_val = float(telemetry.get("iddq_uA", telemetry.get("iddq_ua", telemetry.get("iddq", 10.0))))
+        iddq_val = float(
+            telemetry.get(
+                "iddq_uA", telemetry.get("iddq_ua", telemetry.get("iddq", 10.0))
+            )
+        )
         return {
             "timestamp": telemetry.get("timestamp"),
             "voltage": float(telemetry.get("voltage", 5.0)),
@@ -123,8 +133,14 @@ class TelemetryStore:
             "iddq_uA": iddq_val,
             "prop_delay": float(telemetry.get("prop_delay", 4.50)),
             "anomaly_score": float(telemetry.get("anomaly_score", 0.032)),
-            "isolation_anomaly": bool(telemetry.get("is_anomaly", telemetry.get("isolation_anomaly", False))),
-            "drift_anomaly": bool(telemetry.get("cusum_drift_detected", telemetry.get("drift_anomaly", False))),
+            "isolation_anomaly": bool(
+                telemetry.get("is_anomaly", telemetry.get("isolation_anomaly", False))
+            ),
+            "drift_anomaly": bool(
+                telemetry.get(
+                    "cusum_drift_detected", telemetry.get("drift_anomaly", False)
+                )
+            ),
             "fault_type": str(telemetry.get("fault_type", "NORMAL")),
             "criticality_level": int(telemetry.get("criticality_level", 2)),
             "system_status": str(telemetry.get("system_status", "NOMINAL")),
@@ -144,12 +160,16 @@ class TelemetryStore:
                 if "iddq_uA" in http_payload:
                     http_payload["iddq_ua"] = http_payload.pop("iddq_uA")
 
-                res = self.http_client.post(f"{self.url}/rest/v1/telemetry_logs", json=http_payload)
+                res = self.http_client.post(
+                    f"{self.url}/rest/v1/telemetry_logs", json=http_payload
+                )
                 if res.status_code in (200, 201):
                     return
                 # Fallback: if database preserved exact case iddq_uA
                 if "iddq_ua" in res.text:
-                    self.http_client.post(f"{self.url}/rest/v1/telemetry_logs", json=payload)
+                    self.http_client.post(
+                        f"{self.url}/rest/v1/telemetry_logs", json=payload
+                    )
             except Exception as exc:
                 self.last_error = f"Insert error: {exc}"
                 logger.debug("PostgREST insert failed; local deque preserved: %s", exc)
@@ -158,9 +178,13 @@ class TelemetryStore:
                 self.client.table("telemetry_logs").insert(payload).execute()
             except Exception as exc:
                 self.last_error = f"Insert error: {exc}"
-                logger.debug("Supabase client insert failed; local deque preserved: %s", exc)
+                logger.debug(
+                    "Supabase client insert failed; local deque preserved: %s", exc
+                )
 
-    def record_event(self, event_type: str, severity: str, message: str, criticality_level: int = 2) -> None:
+    def record_event(
+        self, event_type: str, severity: str, message: str, criticality_level: int = 2
+    ) -> None:
         """Records a system or audit event."""
         event_dict = {
             "event_type": str(event_type),
@@ -174,7 +198,9 @@ class TelemetryStore:
 
         if self.http_client and self.url:
             try:
-                self.http_client.post(f"{self.url}/rest/v1/system_events", json=event_dict)
+                self.http_client.post(
+                    f"{self.url}/rest/v1/system_events", json=event_dict
+                )
             except Exception as exc:
                 self.last_error = f"Event error: {exc}"
         elif self.client:
@@ -183,7 +209,9 @@ class TelemetryStore:
             except Exception as exc:
                 self.last_error = f"Event error: {exc}"
 
-    def recent(self, limit: int = 100, fault_type: str | None = None) -> list[dict[str, Any]]:
+    def recent(
+        self, limit: int = 100, fault_type: str | None = None
+    ) -> list[dict[str, Any]]:
         """
         Retrieves recent telemetry with optional fault_type filtering.
         Queries Supabase if active, otherwise reads from local synchronized buffer.
@@ -204,7 +232,11 @@ class TelemetryStore:
                 self.last_error = f"Query error: {exc}"
         elif self.client:
             try:
-                query = self.client.table("telemetry_logs").select("*").order("timestamp", desc=True)
+                query = (
+                    self.client.table("telemetry_logs")
+                    .select("*")
+                    .order("timestamp", desc=True)
+                )
                 if fault_type and fault_type != "ALL":
                     query = query.eq("fault_type", fault_type.upper())
                 res = query.limit(limit).execute()
@@ -216,7 +248,9 @@ class TelemetryStore:
         with self._lock:
             records = list(self._history)
             if fault_type and fault_type != "ALL":
-                records = [r for r in records if r.get("fault_type") == fault_type.upper()]
+                records = [
+                    r for r in records if r.get("fault_type") == fault_type.upper()
+                ]
             return list(reversed(records[-limit:]))
 
     def recent_events(self, limit: int = 50) -> list[dict[str, Any]]:
@@ -236,7 +270,11 @@ class TelemetryStore:
         elif self.client:
             try:
                 res = (
-                    self.client.table("system_events").select("*").order("created_at", desc=True).limit(limit).execute()
+                    self.client.table("system_events")
+                    .select("*")
+                    .order("created_at", desc=True)
+                    .limit(limit)
+                    .execute()
                 )
                 if res.data:
                     return res.data

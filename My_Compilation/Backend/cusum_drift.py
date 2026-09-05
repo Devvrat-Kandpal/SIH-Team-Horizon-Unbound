@@ -41,8 +41,18 @@ class DriftDetector:
       - Level 2 (nominal/default): h = 5.0  (ECSS baseline)
       - Level 3 (mission-critical): h = 3.5  (tightest — earliest alarm)
 
-    The allowance k is fixed at 0.5 across all levels — it is calibrated to the
-    sensor noise floor (σ ≈ 0.15 °C), not to mission criticality.
+    # The allowance k = 0.5 µA is calibrated to the Iddq measurement domain (σ ≈ 1.17 µA).
+    # k/σ ≈ 0.43. This places k in the sub-σ range effective for detecting small,
+    # persistent latent shifts (δ ≈ 0.5–1.0σ) without excessive false alarms on nominal lots.
+    # k does NOT change with criticality level — the threshold h carries the criticality burden.
+    #
+    # CALIBRATION-DOMAIN LIMITATION (measured, see evaluate_model.benchmark_unclamped_nominal):
+    # k = 0.5 µA with h = 3.5–7.0 is calibrated for the DEMO sensor-noise domain
+    # (Iddq noise σ ≈ 0.2 µA, clamped lot [9.0, 11.5] µA). Against the natural
+    # ±1.17 µA lot spread with NO demo clamp, the two-sided CUSUM accumulates
+    # zero-mean noise and eventually trips (measured 92% flag rate over 3000
+    # unclamped nominal samples). On real HTOL hardware, re-derive k and h from
+    # the actual measurement-domain σ before deployment.
     """
 
     def __init__(
@@ -50,8 +60,8 @@ class DriftDetector:
         metric_name: str = "Iddq",
         mean: float = 10.0,
         std: float = 1.17,
-        k: float = None,
-        threshold: float = None,
+        k: float | None = None,
+        threshold: float | None = None,
         criticality_level: int = 2,
     ):
         self.metric_name = metric_name
@@ -72,7 +82,9 @@ class DriftDetector:
 
         # Decision threshold (h) — criticality-weighted.
         # If caller explicitly passes threshold, use it; otherwise use config value.
-        self.threshold = float(threshold) if threshold is not None else float(cfg["cusum_threshold"])
+        self.threshold = (
+            float(threshold) if threshold is not None else float(cfg["cusum_threshold"])
+        )
 
         # Stateful cumulative positive deviation
         self.cusum = 0.0
@@ -151,7 +163,9 @@ if __name__ == "__main__":
 
     for level in [1, 2, 3]:
         print(f"\n--- Criticality Level {level} ---")
-        detector = DriftDetector(metric_name="Iddq", mean=10.0, std=1.17, criticality_level=level)
+        detector = DriftDetector(
+            metric_name="Iddq", mean=10.0, std=1.17, criticality_level=level
+        )
         print(f"  CUSUM threshold (h) = {detector.threshold}, k = {detector.k}")
 
         print("  [Phase 1] 20 Normal Sensor Readings (±0.2 µA jitter)...")

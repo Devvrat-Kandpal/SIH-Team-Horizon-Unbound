@@ -312,6 +312,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Member 4 CUSUM metrics
         const cusumScore = Number(payload.cusum_score !== undefined ? payload.cusum_score : 0.0);
         const cusumDriftDetected = Boolean(payload.cusum_drift_detected);
+        const cusumThr = Number(payload.cusum_threshold !== undefined ? payload.cusum_threshold : 5.0);
 
         // 1. Update Telemetry Cards
         if (iddqValueEl) iddqValueEl.textContent = iddq.toFixed(1);
@@ -432,7 +433,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 qaVerdictBadge.className = "qaBadge warning";
             }
             if (qaJustificationText) {
-                qaJustificationText.textContent = `QA STATUS [DRIFT ALERT]: Module C Cumulative Sum (CUSUM) statistical filter flagged latent parametric creep (S+ = ${cusumScore.toFixed(4)} >= 3.0σ).`;
+                qaJustificationText.textContent = `QA STATUS [DRIFT ALERT]: Module C Cumulative Sum (CUSUM) statistical filter flagged latent parametric creep (S+ = ${cusumScore.toFixed(4)} >= ${cusumThr.toFixed(1)} µA).`;
                 qaJustificationText.style.borderLeftColor = "#f59e0b";
             }
 
@@ -448,7 +449,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             if (lastAlertMode !== "cusum_drift") {
-                pushAlert("alert-yellow", `📈 MODULE C CUSUM: Progressive time-series drift detected (S+ = ${cusumScore.toFixed(4)} >= 3.0σ).`);
+                pushAlert("alert-yellow", `📈 MODULE C CUSUM: Progressive time-series drift detected (S+ = ${cusumScore.toFixed(4)} >= ${cusumThr.toFixed(1)} µA).`);
                 lastAlertMode = "cusum_drift";
             }
         } else {

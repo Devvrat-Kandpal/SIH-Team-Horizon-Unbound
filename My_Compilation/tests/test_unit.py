@@ -31,7 +31,9 @@ def test_arrhenius_leakage_acceleration():
     exponent = (Ea / kB_eV) * (1.0 / T0_K - 1.0 / T_hot_K)
     theoretical_acceleration_factor = math.exp(exponent)
 
-    assert theoretical_acceleration_factor > 100.0, "HTOL 125°C must significantly accelerate silicon leakage"
+    assert (
+        theoretical_acceleration_factor > 100.0
+    ), "HTOL 125°C must significantly accelerate silicon leakage"
 
     sim = ComponentSimulator(criticality_level=2)
     telemetry_nominal = sim.step_telemetry(scenario="nominal")
@@ -64,7 +66,9 @@ def test_adc_quantization_resolution():
 
 def test_cusum_mathematical_accumulation():
     """Validates Tabular CUSUM S+ formula: S_n^+ = max(0, S_{n-1}^+ + X_n - (mu + k))."""
-    detector = DriftDetector(metric_name="Iddq", mean=10.0, std=1.0, criticality_level=2)
+    detector = DriftDetector(
+        metric_name="Iddq", mean=10.0, std=1.0, criticality_level=2
+    )
 
     # Under Level 2: k = 0.5, h = 5.0
     assert detector.allowance == 0.5
@@ -99,7 +103,10 @@ def test_cusum_mathematical_accumulation():
 def test_ols_drift_predictor_projection():
     """Validates Ordinary Least Squares linear extrapolation to 168h endpoint."""
     predictor = LinearRegressionDriftPredictor(
-        lot_mean_iddq=10.0, lot_std_iddq=1.17, datasheet_limit_ua=50.0, dynamic_sigma=3.0
+        lot_mean_iddq=10.0,
+        lot_std_iddq=1.17,
+        datasheet_limit_ua=50.0,
+        dynamic_sigma=3.0,
     )
 
     # Nominal slow drift: 0h = 10.0 uA, 24h = 10.2 uA -> slope = 0.2 / 24 = 0.00833 uA/h

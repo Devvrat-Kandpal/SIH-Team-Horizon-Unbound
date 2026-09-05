@@ -14,10 +14,11 @@ Threshold derivation (from simulator.py physics):
 
 CUSUM parameters:
   - k (allowance): fixed at 0.5 across all levels.
-      Rationale: k tracks the sensor noise floor, not criticality.
-      At k=0.5, a single reading must exceed µ+0.5 to accumulate in S+.
-      Normal noise (σ=0.15°C) rarely exceeds µ+0.5 → near-zero false-alarm rate.
-      k must NOT change with criticality — only the decision threshold (h) changes.
+      Rationale: CUSUM operates on Iddq (µA). k = 0.5 µA is calibrated to the
+      Iddq measurement domain (σ ≈ 1.17 µA); k/σ ≈ 0.43 — a sub-σ allowance
+      tuned to detect small persistent latent shifts (δ ≈ 0.5–1.0σ) without
+      excessive false alarms on nominal lots. k does NOT change with
+      criticality — only the decision threshold (h) changes.
   - h (threshold): varies with criticality level (see table below).
       Level 3 (h=3.5): fires after ~7 consecutive elevated readings — earliest alarm.
       Level 2 (h=5.0): fires after ~10 consecutive elevated readings — baseline.

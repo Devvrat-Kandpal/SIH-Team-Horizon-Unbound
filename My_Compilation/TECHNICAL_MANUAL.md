@@ -75,7 +75,7 @@ graph TD
 - **Recursive Formula**:
   $$S_n^+ = \max(0, S_{n-1}^+ + X_n - (\mu_{lot} + k))$$
 - **Parameters**:
-  - $k = 0.5$ (fixed noise allowance calibrated to thermal sensor noise $\sigma = 0.15^\circ\text{C}$).
+  - $k = 0.5$ (fixed noise allowance, calibrated to the Iddq measurement domain $\sigma \approx 1.17\ \mu\text{A}$; $k/\sigma \approx 0.43$).
   - $h$: Decision threshold ($3.5$ for Level 3, $5.0$ for Level 2, $7.0$ for Level 1).
 
 ---

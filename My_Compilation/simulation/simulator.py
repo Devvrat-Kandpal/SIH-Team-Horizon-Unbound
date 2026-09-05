@@ -2,6 +2,9 @@
 simulation/simulator.py — Canonical backward-compatibility shim.
 Authoritative source code is relocated to Backend/simulator.py per canonical architecture.
 """
+# ruff: noqa: E402, F403, F401, I001
+# (intentional shim pattern: re-export the authoritative Backend implementation)
+
 import sys
 import os
 

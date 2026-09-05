@@ -34,7 +34,11 @@ def test_criticality_config_structure_and_monotonicity():
     assert cfg1["cusum_k"] == cfg2["cusum_k"] == cfg3["cusum_k"] == 0.5
 
     # 3. Isolation Forest score threshold must strictly decrease (tighter sensitivity)
-    assert cfg1["if_score_threshold"] > cfg2["if_score_threshold"] > cfg3["if_score_threshold"]
+    assert (
+        cfg1["if_score_threshold"]
+        > cfg2["if_score_threshold"]
+        > cfg3["if_score_threshold"]
+    )
     assert cfg1["if_score_threshold"] == 0.65
     assert cfg2["if_score_threshold"] == 0.55
     assert cfg3["if_score_threshold"] == 0.45
@@ -81,9 +85,9 @@ def test_criticality_detection_latency_ranking():
     assert trip_tick_1 is not None, "Level 1 must detect drift"
 
     # Strict latency hierarchy: Latency(L3) < Latency(L2) < Latency(L1)
-    assert trip_tick_3 < trip_tick_2 < trip_tick_1, (
-        f"Expected trip order L3 < L2 < L1, got L3={trip_tick_3}, L2={trip_tick_2}, L1={trip_tick_1}"
-    )
+    assert (
+        trip_tick_3 < trip_tick_2 < trip_tick_1
+    ), f"Expected trip order L3 < L2 < L1, got L3={trip_tick_3}, L2={trip_tick_2}, L1={trip_tick_1}"
 
 
 def test_criticality_zero_false_positives_on_nominal_cycles():
@@ -95,10 +99,14 @@ def test_criticality_zero_false_positives_on_nominal_cycles():
     nominal_readings = np.random.normal(loc=10.0, scale=0.15, size=1000)
 
     for level in [1, 2, 3]:
-        detector = DriftDetector(metric_name="Iddq", mean=10.0, std=0.15, criticality_level=level)
+        detector = DriftDetector(
+            metric_name="Iddq", mean=10.0, std=0.15, criticality_level=level
+        )
         false_alarms = 0
         for val in nominal_readings:
             flag, _ = detector.update(val)
             if flag:
                 false_alarms += 1
-        assert false_alarms == 0, f"Criticality Level {level} had {false_alarms} false alarms on nominal noise"
+        assert (
+            false_alarms == 0
+        ), f"Criticality Level {level} had {false_alarms} false alarms on nominal noise"
