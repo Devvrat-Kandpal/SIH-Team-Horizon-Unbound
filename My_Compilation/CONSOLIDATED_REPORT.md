@@ -47,10 +47,27 @@ Both audit rounds raised several "blocking" issues. **None are real in the curre
 
 **B. Optional verification (recommended, non-blocking):** no one has run Isolation-Forest alone against drift/short rows to measure raw `if_flagged` contribution vs the blended score. Not a bug; a good final sanity test / Q&A point. Happy to run on request.
 
+## Part 5 — ROOT CAUSE FOUND: two divergent simulator.py versions (the audits explained)
+
+The reason every audit kept "finding" bugs that don't exist in this repo is now confirmed: **a teammate has been reviewing a local, uncommitted simulator.py rewrite** that was never pushed. Its markers (`_arrhenius_iddq`, `iddq_uA` column, `I_nominal=1.628`, `gauss(0, 0.35)`, 4-tuple `step()`) exist **nowhere in the repository** — verified by a full-workspace search. The repo's `simulation/simulator.py` is only a compat shim re-exporting `Backend/simulator.py`.
+
+**If that rewrite were merged, it would break the project:**
+- Reintroduces the **5000× leakage bug** (`I_leak_base = 0.05` A; repo has the corrected `10e-6`)
+- `step()` returns a **4-tuple** → breaks `server.py`, `evaluate_model.py`, and every test
+- Drops `compute_iddq_and_prop_delay`, `prop_delay`, `export_to_sqlite`, public `quantize`
+- **INVERTS the criticality convention** (theirs: L1=highest reliability; project-wide: L1=LOW, L3=mission-critical)
+- `iddq_uA` column vs the canonical `iddq` — breaks dataset tests
+
+**Team action: stop reviewing local divergent copies. Pull from GitHub (`b9ee643`+), and treat `Backend/simulator.py` as the single source of truth.** If any improvement from the local rewrite is wanted (e.g., Arrhenius-scaled Iddq signature), it must be **ported onto the authoritative file** with the contract tests passing — not swapped in wholesale.
+
+**Anti-divergence guard added:** `tests/test_simulator_columns.py` now locks the simulator's public contract (3-tuple `step()`, `compute_iddq_and_prop_delay`, public `quantize`/`export_to_sqlite`, `I_leak_base == 10e-6`, `R_th == 16.667`, non-inverted criticality convention, canonical `iddq` column). Any divergent rewrite now fails CI loudly instead of silently breaking the system.
+
+Also clarified in `Backend/criticality_config.py`: **two distinct Iddq noise domains** — lot-jitter σ≈1.15 µA (cross-component spread, printed into CSVs, cancelled by per-DUT auto-baseline) vs the live per-tick server domain σ≈0.15 µA (what the deployed CUSUM actually consumes). k=0.5 stays: 0 false alarms measured across 200 parts × 1000 ticks × 3 levels on the live domain (now codified as a deterministic test). The "σ≈0.36, change k→0.18" claim was measured against the divergent rewrite's noise, not this repo's physics.
+
 ## Final status
 
-- No import error, no blocking bug. App starts, **66 tests pass**, all pushed at **`be4796a`**.
-- Replicate: `python main.py` (dashboard opens) · `pytest tests/ -q` (66 passed).
-- The audits reviewed a different/stale codebase; none of their confirmed bugs exist here.
+- No import error, no blocking bug. App starts, **70 tests pass**, all pushed (latest: see `git log`).
+- Replicate: `python main.py` (dashboard opens) · `pytest tests/ -q` (70 passed).
+- The audits reviewed a teammate's divergent local rewrite; none of their confirmed bugs exist in this repo.
 
 *Generated from live-code verification — every metric measured, not estimated.*
