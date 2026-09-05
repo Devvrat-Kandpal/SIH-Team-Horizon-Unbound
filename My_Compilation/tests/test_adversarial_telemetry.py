@@ -248,6 +248,33 @@ def test_cusum_legacy_mode_unchanged():
     assert d.cusum > 0.0, "Legacy mode must accumulate from the first tick"
 
 
+def test_cusum_live_noise_domain_no_false_alarm():
+    """Deployed calibration check (Monte-Carlo, fixed seed):
+    On the LIVE server per-tick Iddq noise domain (σ ≈ 0.15 µA, per-DUT auto-baseline),
+    k=0.5 must NOT false-alarm on healthy parts at ANY criticality level.
+
+    This guards the two-domain distinction documented in criticality_config.py:
+    lot-jitter σ≈1.15 (cross-component spread, cancelled by auto-baseline) vs the
+    live per-tick σ≈0.15 the deployed CUSUM actually consumes."""
+    random.seed(123)
+    for level in (1, 2, 3):
+        false_trips = 0
+        for _ in range(120):  # parts
+            baseline = 10.0 + random.gauss(0, 1.15)  # unclamped lot position
+            d = DriftDetector(
+                mean=10.0, std=1.15, criticality_level=level,
+                auto_baseline=True, baseline_window=15,
+            )
+            for _tick in range(500):
+                # live server per-tick noise domain
+                if d.evaluate_drift(baseline + random.gauss(0, 0.15)):
+                    false_trips += 1
+                    break
+        assert false_trips == 0, (
+            f"Level {level}: {false_trips}/120 healthy live-domain parts false-tripped"
+        )
+
+
 def test_cusum_nonfinite_does_not_latch():
     """A single NaN/Inf sample must NOT permanently wedge CUSUM into alarm
     (single-impulse latch prevention): the detector ignores non-finite samples,
