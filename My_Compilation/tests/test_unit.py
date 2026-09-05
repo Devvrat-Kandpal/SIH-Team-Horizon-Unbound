@@ -4,7 +4,6 @@ Unit tests for core physical formulas, Arrhenius leakage acceleration,
 12-bit ADC quantization, CUSUM accumulation, and OLS drift projection.
 Conforms to ECSS-Q-ST-60-02C Space Product Assurance.
 """
-
 import math
 import sys
 from pathlib import Path

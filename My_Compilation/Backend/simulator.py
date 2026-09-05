@@ -286,6 +286,12 @@ def get_live_telemetry(
     iddq, pd_val = _global_sim.compute_iddq_and_prop_delay(
         temp, volt, mode=mode, drift_time=seconds_elapsed
     )
+    # Fail-safe telemetry guard: never emit a non-finite core reading downstream.
+    # A NaN/±Inf sample must not reach the isolation forest (already guarded) or
+    # CUSUM (non-finite latch prevention) with an ambiguous value.
+    if not (math.isfinite(temp) and math.isfinite(volt) and math.isfinite(curr)):
+        temp, volt, curr = 125.0, 5.0, 1.155
+        iddq, pd_val = 10.0, 4.5
     return {
         "timestamp": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
         "voltage": volt,
@@ -546,6 +552,18 @@ def parse_args() -> argparse.Namespace:
         "--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"]
     )
     return parser.parse_args()
+
+
+def get_next_telemetry_frame(
+    mode: str = "normal", seconds_elapsed: int = 0
+) -> Dict[str, str | float | int]:
+    """Compatibility wrapper around get_live_telemetry (single canonical frame source)."""
+    return get_live_telemetry(mode=mode, seconds_elapsed=seconds_elapsed)
+
+
+def reset_simulator() -> None:
+    """Compatibility wrapper that resets the shared global simulator state."""
+    _global_sim.reset()
 
 
 if __name__ == "__main__":

@@ -283,8 +283,21 @@ class MultivariateAnomalyDetector:
         voltage = df["voltage"].values
         current = df["current"].values
         temperature = df["temperature"].values
+        # Resolve the quiescent-leakage column robustly (case-insensitive).
+        # The canonical simulator column is "iddq"; accept "iddq_uA"/"iddqp" too
+        # so training survives any naming drift without a silent 10.0 fallback.
+        iddq_col = next(
+            (
+                c
+                for c in df.columns
+                if str(c).strip().lower() in ("iddq", "iddq_ua", "iddqp")
+            ),
+            None,
+        )
         iddq = (
-            df["iddq"].values if "iddq" in df.columns else np.full_like(voltage, 10.0)
+            df[iddq_col].values
+            if iddq_col is not None
+            else np.full_like(voltage, 10.0)
         )
         prop_delay = (
             df["prop_delay"].values
