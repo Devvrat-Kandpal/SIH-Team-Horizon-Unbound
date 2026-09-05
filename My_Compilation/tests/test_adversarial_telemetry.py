@@ -14,6 +14,7 @@ Covers:
 """
 
 import math
+import random
 import sys
 from pathlib import Path
 
@@ -178,3 +179,70 @@ def test_cusum_sustained_creep_detects():
             detected = True
             break
     assert detected is True
+
+
+# ============================================================================
+# Per-DUT auto-baseline (CUSUM calibration-domain fix)
+# ============================================================================
+def test_cusum_autobaseline_high_baseline_part_no_false_trip():
+    """A healthy part whose own baseline sits at 11.4 uA (within natural lot
+    spread) must NOT false-trip when auto-baselined to its own readings."""
+    d = DriftDetector(mean=10.0, std=1.17, criticality_level=2, auto_baseline=True, baseline_window=15)
+    random.seed(7)
+    tripped = False
+    for _ in range(60):
+        if d.evaluate_drift(11.4 + random.gauss(0, 0.2)):
+            tripped = True
+            break
+    assert not tripped, "Auto-baselined healthy part at 11.4 uA must not false-trip"
+    assert d._baseline_locked, "Baseline must have calibrated after the learning window"
+    assert 11.0 < d.mean < 11.8, f"Reference must lock near the part's own baseline, got {d.mean}"
+
+
+def test_cusum_autobaseline_detects_drift_from_own_baseline():
+    """Drift is measured relative to the part's OWN baseline, not the lot mean:
+    a part baselined at 11.4 uA that creeps upward must still be caught."""
+    d = DriftDetector(mean=10.0, std=1.17, criticality_level=2, auto_baseline=True, baseline_window=15)
+    random.seed(7)
+    for _ in range(15):
+        d.evaluate_drift(11.4 + random.gauss(0, 0.2))
+    detected = False
+    iddq = 11.4
+    for _ in range(200):
+        iddq += 0.15
+        if d.evaluate_drift(iddq):
+            detected = True
+            break
+    assert detected, "Creep from the part's own baseline must be detected"
+
+
+def test_cusum_autobaseline_learning_phase_never_alarms():
+    """During the baseline learning window the detector must stay silent,
+    even when fed outlier-ish calibration values."""
+    d = DriftDetector(mean=10.0, std=1.17, criticality_level=2, auto_baseline=True, baseline_window=15)
+    for v in (12.0, 11.9, 12.1, 11.8, 12.0, 11.9, 12.0, 12.2, 11.9, 12.0, 12.1, 11.9, 12.0, 12.0, 12.1):
+        assert d.evaluate_drift(v) is False, "Learning phase must not alarm"
+
+
+def test_cusum_autobaseline_reset_re_arms_learning():
+    """reset() must re-arm the baseline learning phase for the next DUT."""
+    d = DriftDetector(mean=10.0, std=1.17, criticality_level=2, auto_baseline=True, baseline_window=5)
+    for _ in range(10):
+        d.evaluate_drift(11.0)
+    assert d._baseline_locked
+    d.reset()
+    assert not d._baseline_locked
+    assert d.mean == 10.0, "reset must restore the prior population mean"
+    assert not d.evaluate_drift(11.0), "re-armed learning phase must not alarm"
+
+
+def test_cusum_legacy_mode_unchanged():
+    """Default (auto_baseline=False) must keep the historical global-reference
+    behaviour: accumulation against the fixed mean from tick one."""
+    d = DriftDetector(mean=10.0, std=1.17, criticality_level=2)
+    # 10.0 == mean, so S+ stays clamped at 0
+    assert d.evaluate_drift(10.0) is False
+    assert d.cusum == 0.0
+    # One large spike immediately accumulates (no learning window)
+    d.evaluate_drift(15.0)
+    assert d.cusum > 0.0, "Legacy mode must accumulate from the first tick"

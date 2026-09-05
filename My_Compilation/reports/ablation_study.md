@@ -9,7 +9,7 @@
 - **ROC-AUC Score:** 0.9993
 - **False Negative Rate (FNR):** 0.000%
 - **False Positive Rate (FPR):** 0.138%
-- **Average Inference Latency:** 2.8494 ms per sample
+- **Average Inference Latency:** 2.8237 ms per sample
 
 ### Confusion Matrix
 | Metric | Count |

@@ -46,13 +46,16 @@ class DriftDetector:
     # persistent latent shifts (δ ≈ 0.5–1.0σ) without excessive false alarms on nominal lots.
     # k does NOT change with criticality level — the threshold h carries the criticality burden.
     #
-    # CALIBRATION-DOMAIN LIMITATION (measured, see evaluate_model.benchmark_unclamped_nominal):
-    # k = 0.5 µA with h = 3.5–7.0 is calibrated for the DEMO sensor-noise domain
-    # (Iddq noise σ ≈ 0.2 µA, clamped lot [9.0, 11.5] µA). Against the natural
-    # ±1.17 µA lot spread with NO demo clamp, the two-sided CUSUM accumulates
-    # zero-mean noise and eventually trips (measured 92% flag rate over 3000
-    # unclamped nominal samples). On real HTOL hardware, re-derive k and h from
-    # the actual measurement-domain σ before deployment.
+    # CALIBRATION-DOMAIN RESOLUTION (auto_baseline):
+    # k = 0.5 µA with h = 3.5–7.0 assumes sensor noise σ ≈ 0.2 µA around the DUT's own
+    # baseline. Raw population spread (σ ≈ 1.17 µA lot variation) referenced to a GLOBAL
+    # mean would falsely accumulate (measured 92% flag rate — see
+    # evaluate_model.benchmark_unclamped_nominal, iid mode). The fix is NOT re-deriving
+    # k/h per domain but per-DUT auto-baseline calibration (auto_baseline=True): the
+    # first `baseline_window` readings lock THIS component's own reference (robust
+    # median), so CUSUM measures drift from the part itself — invariant to lot position.
+    # This matches standard HTOL practice where each DUT is referenced to its own
+    # t=0 characterization.
     """
 
     def __init__(
@@ -63,10 +66,14 @@ class DriftDetector:
         k: float | None = None,
         threshold: float | None = None,
         criticality_level: int = 2,
+        auto_baseline: bool = False,
+        baseline_window: int = 15,
     ):
         self.metric_name = metric_name
 
-        # Target nominal baseline
+        # Target nominal baseline. With auto_baseline=True this is only the
+        # PRIOR estimate; the detector re-calibrates to the individual DUT's
+        # own baseline from its first `baseline_window` readings (robust median).
         self.mean = float(mean)
 
         # Expected nominal standard deviation (informational; not used in CUSUM formula)
@@ -74,6 +81,16 @@ class DriftDetector:
 
         self.criticality_level = criticality_level
         cfg = get_config(criticality_level)
+
+        # Per-DUT auto-baseline state (standard HTOL practice: each component is
+        # referenced to its OWN initial readings, not the population mean, so
+        # natural lot-to-lot / part-to-part spread (σ ≈ 1.17 µA) cannot accumulate
+        # as false drift. Drift is then measured relative to the part itself.)
+        self.auto_baseline = bool(auto_baseline)
+        self.baseline_window = max(1, int(baseline_window))
+        self._baseline_samples: list[float] = []
+        self._baseline_locked: bool = not auto_baseline
+        self.baseline_prior: float = float(mean)
 
         # Sensitivity / reference parameter (allowance).
         # If caller explicitly passes k, use it; otherwise use config value.
@@ -109,12 +126,35 @@ class DriftDetector:
         """
         Processes a single incoming sensor reading and updates the stateful CUSUM register.
         Returns True if accumulated drift exceeds the criticality-weighted safety threshold.
+
+        With auto_baseline=True, the first `baseline_window` finite readings are used to
+        re-calibrate the reference mean to THIS component's own baseline (robust median);
+        during that learning phase no drift alarm is raised (INITIALIZING semantics,
+        mirroring Module B's insufficient-observation behaviour).
         """
         if self.drift_detected:
             return True
 
+        value = float(sensor_value)
+
+        # Per-DUT baseline learning phase (auto_baseline only)
+        if not self._baseline_locked:
+            if value == value and value not in (float("inf"), float("-inf")):
+                self._baseline_samples.append(value)
+            if len(self._baseline_samples) >= self.baseline_window:
+                samples = sorted(self._baseline_samples)
+                mid = len(samples) // 2
+                self.mean = float(
+                    samples[mid]
+                    if len(samples) % 2
+                    else 0.5 * (samples[mid - 1] + samples[mid])
+                )
+                self._baseline_locked = True
+            # Learning phase: never alarm on calibration data (fail-safe: nominal)
+            return False
+
         # Positive CUSUM calculation
-        self.cusum = max(0.0, self.cusum + float(sensor_value) - (self.mean + self.k))
+        self.cusum = max(0.0, self.cusum + value - (self.mean + self.k))
 
         # Check detection threshold
         if self.cusum >= self.threshold:
@@ -133,6 +173,9 @@ class DriftDetector:
             "criticality_level": self.criticality_level,
             "cusum": round(self.cusum, 4),
             "drift_detected": self.drift_detected,
+            "auto_baseline": self.auto_baseline,
+            "baseline_calibrated": self._baseline_locked,
+            "baseline_samples_collected": len(self._baseline_samples),
         }
 
     @property
@@ -149,9 +192,18 @@ class DriftDetector:
         return flag, self.cusum
 
     def reset(self) -> None:
-        """Resets the stateful accumulator back to zero."""
+        """Resets the stateful accumulator back to zero.
+
+        With auto_baseline=True the baseline learning phase is also re-armed
+        (the next DUT / next scenario re-calibrates from scratch); the prior
+        population mean is restored as the interim reference.
+        """
         self.cusum = 0.0
         self.drift_detected = False
+        if self.auto_baseline:
+            self._baseline_samples = []
+            self._baseline_locked = False
+            self.mean = self.baseline_prior
 
 
 if __name__ == "__main__":

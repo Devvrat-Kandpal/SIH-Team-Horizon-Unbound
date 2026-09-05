@@ -542,6 +542,12 @@ async def websocket_endpoint(websocket: WebSocket):
         mean=lot_mean,
         std=lot_std,
         criticality_level=_server_criticality_level,
+        # Per-DUT auto-baseline: reference is re-calibrated to THIS component's own
+        # first readings (robust median, 15-tick INITIALIZING phase), so natural
+        # lot spread cannot accumulate as false drift. Drift is then measured from
+        # the part itself — standard HTOL practice (t=0 self-characterization).
+        auto_baseline=True,
+        baseline_window=15,
     )
 
     # State variables for simulation stream

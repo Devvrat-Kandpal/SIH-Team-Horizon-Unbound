@@ -117,16 +117,18 @@ structural labels; see `unseen_fault_benchmark.segment_metrics` in
 > ### Unclamped-Nominal False-Positive Check (H1 — measured, not asserted)
 > The live server demo clamps nominal Iddq to [9.0, 11.5] µA (a documented pre-screened-lot
 > bound). The `unclamped_nominal_benchmark` section of the report re-draws nominal Iddq from
-> the **natural lot population N(10.0, 1.17) µA with no clamp** and measures:
+> the **natural lot population N(10.0, 1.17) µA with no clamp** and measures, in two modes:
 > - **Module A FP rate: 0.000%** — the 7σ Isolation-Forest gate is genuinely robust to the full lot spread.
-> - **Module C CUSUM FP rate: 91.97%** — **honest limitation**: CUSUM (k = 0.5 µA, h = 3.5–7.0)
->   is calibrated for the demo's tight sensor-noise domain (σ ≈ 0.2 µA), NOT for the natural
->   ±1.17 µA lot spread; a zero-mean ±1.17 µA two-sided CUSUM accumulates and eventually trips.
->   On real HTOL hardware, k and h must be re-calibrated to the actual measurement-domain σ.
+> - **Mode A (iid, global-reference CUSUM): 91.97% flag rate** — the historical artifact: feeding
+>   lot *spread* to one globally-referenced CUSUM as if it were a single DUT's time series
+>   necessarily accumulates. This measured weakness motivated the architectural fix below.
+> - **Mode B (per-DUT auto-baseline CUSUM): 0/60 healthy parts false-trip** — the shipped fix.
+>   Module C now re-calibrates its reference to *each component's own first 15 readings*
+>   (robust median, INITIALIZING phase), so drift is measured from the part itself. This is
+>   standard HTOL practice (t=0 self-characterization) and makes CUSUM invariant to lot
+>   position — no demo clamp required. Creep from a part's own baseline is still detected
+>   (regression-tested: `test_cusum_autobaseline_*`).
 > - The +3σ informational gate (≈13.5 µA) sees the statistically expected ~0.17% natural tail crossings.
->
-> This is disclosed rather than hidden: zero-FP performance is genuine for Module A, but
-> Module C's demo calibration is domain-specific.
 
 > ### Data-Provenance & Scope Disclosure (honest reading)
 > All recall/precision/F1/ROC-AUC figures above are **measured on the validated synthetic

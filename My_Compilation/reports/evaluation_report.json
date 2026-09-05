@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-09-05T11:14:30Z",
+  "timestamp": "2026-09-05T11:36:45Z",
   "standard": "ECSS-Q-ST-60-02C & MIL-STD-883",
   "unseen_fault_benchmark": {
     "total_samples": 7500,
@@ -13,8 +13,8 @@
     "roc_auc": 0.9993,
     "false_negative_rate": 0.0,
     "false_positive_rate": 0.00138,
-    "avg_inference_latency_ms": 2.8494,
-    "p99_inference_latency_ms": 4.0531,
+    "avg_inference_latency_ms": 2.8237,
+    "p99_inference_latency_ms": 3.6707,
     "segment_metrics": {
       "nominal_false_positive_rate": 0.0,
       "instantaneous_outlier_recall": 1.0,
@@ -269,7 +269,7 @@
     "note": "Sweeps the lot-relative |z| safety-net gate (2\u03c3\u20137\u03c3). This isolates ONLY the raw |z| gate in isolation for analytical insight. Key finding: at low \u03c3 the gate is noisy (nominal FP rises), and at high \u03c3 (e.g. 7\u03c3) it MISSES borderline latent creep just above the 3\u03c3 dynamic gate (11.5\u201314\u00b5A) while still catching extreme defects (30\u201348\u00b5A). This is why the production system is a CASCADE - IF + criticality gate carry the sub-outlier screening, and the 7\u03c3 z-net is purely a belt-and-suspenders catastrophic backstop. The full pipeline (A+C+B) achieves the 100% recall reported in Phase 1, and this table explains why no single |z| threshold could do that alone."
   },
   "unclamped_nominal_benchmark": {
-    "description": "Nominal Iddq drawn from unclamped N(lot_mean, lot_std); the live server demo clamps to [9.0, 11.5] \u00b5A. This measures natural FP behaviour without that clamp.",
+    "description": "Two-mode unclamped honesty check. Mode A (iid): one CUSUM fed independent lot-population draws \u2014 measures the historical global-reference artifact. Mode B (per-DUT): realistic streams, each part auto-baselined to its own first 15 readings, baseline ~N(10, 1.17) \u00b5A unclamped, sensor noise 0.2 \u00b5A.",
     "n_samples": 3000,
     "lot_mean_ua": 10.002151282697616,
     "lot_std_ua": 1.1766981420111373,
@@ -277,7 +277,11 @@
     "natural_dynamic_gate_crossings": 5,
     "natural_dynamic_gate_crossing_rate": 0.00167,
     "module_a_false_positive_rate": 0.0,
-    "module_c_cusum_false_positive_rate": 0.91967,
-    "conclusion": "Measured: Module A FP rate 0.000%, Module C FP rate 91.967% on the unclamped nominal population \u2014 reported honestly without the demo clamp."
+    "mode_a_iid_cusum_flag_rate": 0.91967,
+    "mode_a_note": "Artifact mode: lot spread fed to a single global-reference CUSUM as if it were one DUT's time series \u2014 accumulation is expected and motivated the per-DUT auto-baseline fix.",
+    "mode_b_per_part_false_trip_rate": 0.0,
+    "mode_b_parts_tested": 60,
+    "mode_b_ticks_per_part": 40,
+    "conclusion": "Module A FP rate 0.000% on the unclamped lot. Mode A confirms the global-reference artifact; Mode B shows the shipped per-DUT auto-baseline CUSUM false-trips on 0/60 healthy unclamped parts."
   }
 }

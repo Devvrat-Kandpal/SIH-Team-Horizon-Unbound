@@ -711,45 +711,60 @@ def benchmark_unclamped_nominal(
     lot_mean = detector.lot_stats.get("mean_iddq", 10.0)
     lot_std = detector.lot_stats.get("std_iddq", 1.17)
     dynamic_gate_ua = lot_mean + 3.0 * lot_std
+    sensor_noise_ua = 0.2  # demo measurement-domain noise (documented assumption)
 
-    cusum = DriftDetector(mean=lot_mean, std=lot_std, criticality_level=2)
+    # ---- Mode A: iid population feed (historical honesty check) -------------
+    # One CUSUM fed 3000 independent draws from the lot population. This models
+    # lot SPREAD as if it were temporal drift of one DUT — a construction that
+    # necessarily accumulates (measured 92% pre-fix). Retained for transparency.
+    cusum_iid = DriftDetector(mean=lot_mean, std=lot_std, criticality_level=2)
     sim = ComponentSimulator(criticality_level=2)
     sim.reset()
-
     gate_crossings = 0
     module_a_flags = 0
-    cusum_flags = 0
+    iid_flags = 0
+    n_samples = 3000
     for _ in range(n_samples):
         t, v, c = sim.step(dt=1.0, mode="normal")
         iq = round(random.gauss(lot_mean, lot_std), 2)  # UNCLAMPED nominal draw
         res = detector.detect_spike(
             current=c, voltage=v, temp=t, iddq=iq, prop_delay=4.5, criticality_level=2
         )
-        c_flag = cusum.evaluate_drift(iq)
+        if cusum_iid.evaluate_drift(iq):
+            iid_flags += 1
         if iq > dynamic_gate_ua:
             gate_crossings += 1
         if res["is_anomaly"]:
             module_a_flags += 1
-        if c_flag:
-            cusum_flags += 1
+
+    # ---- Mode B: realistic per-DUT streams with auto-baseline ---------------
+    # Each part has its own baseline drawn from the lot population (~N(10, 1.17))
+    # and is monitored for 40 ticks with demo sensor noise (σ = 0.2 µA), using a
+    # FRESH auto-baseline CUSUM per part. A healthy part must NOT trip.
+    n_parts = 60
+    ticks_per_part = 40
+    part_false_trips = 0
+    for _ in range(n_parts):
+        part_baseline = random.gauss(lot_mean, lot_std)  # UNCLAMPED lot position
+        cusum_part = DriftDetector(
+            mean=lot_mean, std=lot_std, criticality_level=2,
+            auto_baseline=True, baseline_window=15,
+        )
+        tripped = False
+        for _tick in range(ticks_per_part):
+            if cusum_part.evaluate_drift(part_baseline + random.gauss(0, sensor_noise_ua)):
+                tripped = True
+                break
+        if tripped:
+            part_false_trips += 1
 
     a_fp = module_a_flags / n_samples
-    c_fp = cusum_flags / n_samples
-    if a_fp == 0.0 and c_fp == 0.0:
-        conclusion = (
-            "Measured: neither Module A (7σ IF gate) nor Module C (CUSUM) is breached by the "
-            "unclamped nominal population; only the 3σ informational gate sees the "
-            f"statistically expected {gate_crossings / n_samples * 100:.3f}% tail crossings."
-        )
-    else:
-        conclusion = (
-            f"Measured: Module A FP rate {a_fp * 100:.3f}%, Module C FP rate {c_fp * 100:.3f}% "
-            "on the unclamped nominal population — reported honestly without the demo clamp."
-        )
     return {
         "description": (
-            "Nominal Iddq drawn from unclamped N(lot_mean, lot_std); the live server "
-            "demo clamps to [9.0, 11.5] µA. This measures natural FP behaviour without that clamp."
+            "Two-mode unclamped honesty check. Mode A (iid): one CUSUM fed independent "
+            "lot-population draws — measures the historical global-reference artifact. "
+            "Mode B (per-DUT): realistic streams, each part auto-baselined to its own "
+            "first 15 readings, baseline ~N(10, 1.17) µA unclamped, sensor noise 0.2 µA."
         ),
         "n_samples": n_samples,
         "lot_mean_ua": lot_mean,
@@ -758,8 +773,20 @@ def benchmark_unclamped_nominal(
         "natural_dynamic_gate_crossings": gate_crossings,
         "natural_dynamic_gate_crossing_rate": round(gate_crossings / n_samples, 5),
         "module_a_false_positive_rate": round(a_fp, 5),
-        "module_c_cusum_false_positive_rate": round(c_fp, 5),
-        "conclusion": conclusion,
+        "mode_a_iid_cusum_flag_rate": round(iid_flags / n_samples, 5),
+        "mode_a_note": (
+            "Artifact mode: lot spread fed to a single global-reference CUSUM as if it "
+            "were one DUT's time series — accumulation is expected and motivated the "
+            "per-DUT auto-baseline fix."
+        ),
+        "mode_b_per_part_false_trip_rate": round(part_false_trips / n_parts, 5),
+        "mode_b_parts_tested": n_parts,
+        "mode_b_ticks_per_part": ticks_per_part,
+        "conclusion": (
+            f"Module A FP rate {a_fp * 100:.3f}% on the unclamped lot. Mode A confirms the "
+            "global-reference artifact; Mode B shows the shipped per-DUT auto-baseline "
+            f"CUSUM false-trips on {part_false_trips}/{n_parts} healthy unclamped parts."
+        ),
     }
 
 
@@ -835,7 +862,13 @@ def run_full_evaluation():
         f"({unclamped_results['natural_dynamic_gate_crossing_rate'] * 100:.3f}%)"
     )
     print(f"  -> Module A FP rate (unclamped): {unclamped_results['module_a_false_positive_rate'] * 100:.3f}%")
-    print(f"  -> Module C FP rate (unclamped): {unclamped_results['module_c_cusum_false_positive_rate'] * 100:.3f}%")
+    print(f"  -> Mode A (iid global-ref artifact) CUSUM flag rate: {unclamped_results['mode_a_iid_cusum_flag_rate'] * 100:.1f}%")
+    print(
+        f"  -> Mode B (per-DUT auto-baseline) false trips: "
+        f"{unclamped_results['mode_b_per_part_false_trip_rate'] * 100:.1f}% "
+        f"({round(unclamped_results['mode_b_per_part_false_trip_rate'] * unclamped_results['mode_b_parts_tested'])}"
+        f"/{unclamped_results['mode_b_parts_tested']} parts)"
+    )
 
     seg = unseen_results.get("segment_metrics", {})
     print("\n[Honesty Breakdown] Per-segment metrics (post label-bias ground truth):")
