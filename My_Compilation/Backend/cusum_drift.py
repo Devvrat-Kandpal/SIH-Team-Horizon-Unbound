@@ -15,6 +15,7 @@ The CUSUM accumulation formula, stateful register, and reset behavior are
 unchanged regardless of criticality level. Only the decision threshold (h) varies.
 """
 
+import math
 import os
 import sys
 
@@ -136,6 +137,16 @@ class DriftDetector:
             return True
 
         value = float(sensor_value)
+
+        # Non-finite telemetry guard (defensive, single-impulse latch prevention):
+        # a NaN/±Inf sample must never wedge the CUSUM accumulator into a permanent
+        # alarm, nor silently poison S+ with NaN (which would make the statistic
+        # NaN-forever and unrecoverable without an operator reset). Module A already
+        # hard-flags invalid/non-finite telemetry as a quarantined anomaly; CUSUM's
+        # role is persistent drift, so it simply ignores non-finite samples and
+        # remains recoverable. Valid finite telemetry is unaffected.
+        if not math.isfinite(value):
+            return False
 
         # Per-DUT baseline learning phase (auto_baseline only)
         if not self._baseline_locked:

@@ -246,3 +246,28 @@ def test_cusum_legacy_mode_unchanged():
     # One large spike immediately accumulates (no learning window)
     d.evaluate_drift(15.0)
     assert d.cusum > 0.0, "Legacy mode must accumulate from the first tick"
+
+
+def test_cusum_nonfinite_does_not_latch():
+    """A single NaN/Inf sample must NOT permanently wedge CUSUM into alarm
+    (single-impulse latch prevention): the detector ignores non-finite samples,
+    stays recoverable, and still detects genuine creep afterward."""
+    d = DriftDetector(mean=10.0, std=1.17, criticality_level=2)
+    assert d.evaluate_drift(float("nan")) is False
+    assert d._baseline_locked  # non-auto-baseline detector always has a locked reference
+    d2 = DriftDetector(mean=10.0, std=1.17, criticality_level=2, auto_baseline=True, baseline_window=5)
+    for _ in range(5):
+        d2.evaluate_drift(10.0)
+    assert d2._baseline_locked
+    # Inject a corrupt infinity, then confirm the accumulator is not wedged
+    assert d2.evaluate_drift(float("inf")) is False
+    assert math.isnan(d2.cusum) is False
+    # Genuine sustained creep must still be detected after the glitch
+    detected = False
+    iddq = 10.0
+    for _ in range(200):
+        iddq += 0.15
+        if d2.evaluate_drift(iddq):
+            detected = True
+            break
+    assert detected, "CUSUM must still detect creep after a non-finite glitch"
