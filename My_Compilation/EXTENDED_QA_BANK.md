@@ -48,7 +48,7 @@ A: Our physical simulator enforces the 125°C / 168h requirements (ECSS/MIL-STD)
 A: I_leak(T) = I_0 * exp(-(E_a / k_B) * ((1/T) - (1/T_ref))). It models how thermal energy accelerates chemical and physical degradation. We use it to dynamically compute subthreshold leakage current based on the chamber temperature.
 
 **Q: What activation energy (E_a) did you use and why?**
-A: We used E_a = 0.70 eV, which is the standard accepted activation energy for silicon CMOS defect mechanisms (like electromigration and oxide breakdown) in reliability physics.
+A: We use E_a = 0.345 eV (E_a/k_B = 4000 K), implemented in physics_constants.py as the single source of truth. It is a documented silicon reverse-bias junction leakage activation energy; with it, leakage accelerates ~29x between 25 C and 125 C. (Higher literature values like 0.7 eV describe other mechanisms such as electromigration; we deliberately did not reuse them without calibration data.)
 
 **Q: How does your thermal RC network work?**
 A: We model the chip's temperature using a first-order differential equation: dT/dt = (T_ambient - T_chip) / tau + (V * I) * R_th. We use a thermal resistance (R_th) of 16.67 °C/W.
@@ -60,7 +60,7 @@ A: When a chip shorts, resistance drops to near zero. Real power supplies cannot
 A: Real sensors don't give continuous infinite-precision floats. They convert analog signals to digital bits. A 12-bit ADC has 4096 discrete steps. We simulate this quantization noise to ensure our ML models don't overfit to mathematically smooth data.
 
 **Q: Is your 'virtual time' scaling physically sound?**
-A: Yes. We accelerate the *thermal state dynamics* (RC time constant) by 10x for demo purposes so it settles faster, but the *ML regression algorithms (Module B)* strictly use the real elapsed burn-in hours. We do not warp time for the AI.
+A: Yes. All components share one canonical timebase: drift_time is always physical seconds derived from real burn-in hours, and one single Iddq law in simulator.compute_iddq_and_prop_delay() feeds the dataset, ground truth, live server and Module B alike. There is no hidden acceleration factor, which eliminates train/serve skew by construction.
 
 ---
 

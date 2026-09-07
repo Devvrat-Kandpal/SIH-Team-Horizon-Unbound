@@ -11,7 +11,14 @@ Each item lists its root cause and the concrete path to resolution.
   on the simulator's **linear** degradation model. On unseen nonlinear
   regimes (see `reports/evaluation_report.json → ood_generalization_benchmark`):
   piecewise-linear CUSUM detection 0.033, exponential 0.417; OLS 168h MAE
-  degrades from 0.567 µA (in-distribution) to 1.39–9.35 µA (OOD).
+  degrades from **25.06 µA (honest, vs the real coupled trajectory)** to
+  1.39–9.35 µA (OOD). The legacy "in-distribution 0.567 µA" figure was a
+  circular benchmark (GT synthesized from Module B's own linear generator) and
+  is retained only for historical comparison.<br/>
+  **Honest Module B endpoint forecast (vs real 0–168h trajectory):** MAE 25.06 µA,
+  RMSE 30.14 µA, with systematic under-prediction (negative bias) because the
+  physical Iddq curve is super-linear (Arrhenius thermal amplification) and
+  clamp-limited at 150 µA. See `reports/ablation_study.md` §2a.
 - **Root cause:** linear OLS slope assumption; CUSUM assumes a sustained
   constant-magnitude shift.
 - **Not fixed by design:** changing the drift model to "improve" OOD numbers

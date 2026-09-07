@@ -280,6 +280,14 @@ class MultivariateAnomalyDetector:
         else:
             raise ValueError("data_source must be a CSV file path or pandas DataFrame")
 
+        # Training contract: fit on healthy baseline rows only. Datasets may append
+        # labeled reference/trajectory records (e.g. 0h/24h/96h/168h_record) whose
+        # elevated Iddq/temperature values would contaminate the nominal boundary.
+        if "label" in df.columns:
+            healthy = df[df["label"] == "normal"]
+            if not healthy.empty:
+                df = healthy
+
         voltage = df["voltage"].values
         current = df["current"].values
         temperature = df["temperature"].values

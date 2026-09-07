@@ -56,7 +56,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // =========================================================
     // 2. MISSION CLOCK & INTERVAL ADVANCEMENT
     // =========================================================
-    let missionSeconds = 0;
+    window._missionSeconds = 0;
     let burnInHours = 0; // Virtual hours: 0h -> 24h -> 96h -> 168h
     let pendingReset = false;
     const missionTimeEl = document.getElementById("missionTime");
@@ -69,10 +69,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const earlyHoursSaved = document.getElementById("earlyHoursSaved");
 
     setInterval(() => {
-        missionSeconds++;
-        const hours = Math.floor(missionSeconds / 3600);
-        const minutes = Math.floor((missionSeconds % 3600) / 60);
-        const seconds = missionSeconds % 60;
+        window._missionSeconds++;
+        const hours = Math.floor(window._missionSeconds / 3600);
+        const minutes = Math.floor((window._missionSeconds % 3600) / 60);
+        const seconds = window._missionSeconds % 60;
         if (missionTimeEl) {
             missionTimeEl.textContent = 
                 `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
@@ -133,7 +133,20 @@ document.addEventListener("DOMContentLoaded", () => {
     // =========================================================
     const chartCanvas = document.getElementById("telemetryChart");
     const ctx = chartCanvas ? chartCanvas.getContext("2d") : null;
-    const MAX_POINTS = 30;
+    const MAX_POINTS = 180;
+
+    // Format elapsed burn-in hours as a standard HH:MM:SS clock (same style
+    // as the mission clock). 10.25h -> "10:15:00". Coerces non-finite input
+    // to 00:00:00 defensively.
+    function formatBurnInClock(hours) {
+        let h = Number(hours);
+        if (!Number.isFinite(h) || h < 0) h = 0;
+        const totalSeconds = Math.floor(h * 3600);
+        const hh = Math.floor(totalSeconds / 3600);
+        const mm = Math.floor((totalSeconds % 3600) / 60);
+        const ss = totalSeconds % 60;
+        return `${String(hh).padStart(2, "0")}h ${String(mm).padStart(2, "0")}m ${String(ss).padStart(2, "0")}s`;
+    }
 
     const telemetryChart = ctx && typeof Chart !== "undefined" ? new Chart(ctx, {
         type: "line",
@@ -146,7 +159,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     borderColor: "#38bdf8",
                     backgroundColor: "rgba(56, 189, 248, 0.1)",
                     borderWidth: 2.5,
-                    pointRadius: 2,
+                    pointRadius: 0,
+                    pointHitRadius: 6,
                     tension: 0.3,
                     yAxisID: "y-iddq"
                 },
@@ -156,9 +170,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     borderColor: "#60a5fa",
                     backgroundColor: "rgba(96, 165, 250, 0.05)",
                     borderWidth: 2,
-                    pointRadius: 1.5,
+                    pointRadius: 0,
+                    pointHitRadius: 6,
                     tension: 0.3,
-                    yAxisID: "y-vi"
+                    yAxisID: "y-volt"
                 },
                 {
                     label: "Active Current (A)",
@@ -166,9 +181,22 @@ document.addEventListener("DOMContentLoaded", () => {
                     borderColor: "#f97316",
                     backgroundColor: "rgba(249, 115, 22, 0.05)",
                     borderWidth: 2,
-                    pointRadius: 1.5,
+                    pointRadius: 0,
+                    pointHitRadius: 6,
                     tension: 0.3,
-                    yAxisID: "y-vi"
+                    yAxisID: "y-amp"
+                },
+                {
+                    // Datasheet static screening limit (audit minor fix):
+                    // constant 50 uA reference line on the Iddq axis.
+                    label: "Screening Limit (50 uA)",
+                    data: Array(MAX_POINTS).fill(50.0),
+                    borderColor: "rgba(239, 68, 68, 0.55)",
+                    borderDash: [6, 6],
+                    borderWidth: 1.5,
+                    pointRadius: 0,
+                    tension: 0,
+                    yAxisID: "y-iddq"
                 },
                 {
                     label: "Chamber Temp (°C)",
@@ -176,7 +204,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     borderColor: "#ef4444",
                     backgroundColor: "rgba(239, 68, 68, 0.05)",
                     borderWidth: 2,
-                    pointRadius: 1.5,
+                    pointRadius: 0,
+                    pointHitRadius: 6,
                     tension: 0.3,
                     yAxisID: "y-temp"
                 }
@@ -189,7 +218,14 @@ document.addEventListener("DOMContentLoaded", () => {
             scales: {
                 x: {
                     grid: { color: "rgba(255, 255, 255, 0.04)" },
-                    ticks: { color: "#64748b", font: { size: 9 } }
+                    ticks: {
+                        color: "#64748b",
+                        font: { size: 9 },
+                        autoSkip: true,
+                        maxTicksLimit: 10,
+                        maxRotation: 0,
+                        minRotation: 0
+                    }
                 },
                 "y-iddq": {
                     type: "linear",
@@ -207,7 +243,23 @@ document.addEventListener("DOMContentLoaded", () => {
                         color: "#38bdf8"
                     }
                 },
-                "y-vi": {
+                "y-volt": {
+                    type: "linear",
+                    position: "right",
+                    suggestedMin: 0,
+                    suggestedMax: 6,
+                    grid: { drawOnChartArea: false },
+                    ticks: {
+                        color: "#60a5fa",
+                        callback: (v) => v + " V"
+                    },
+                    title: {
+                        display: true,
+                        text: "Supply Voltage (V)",
+                        color: "#60a5fa"
+                    }
+                },
+                "y-amp": {
                     type: "linear",
                     position: "right",
                     suggestedMin: 0,
@@ -215,11 +267,11 @@ document.addEventListener("DOMContentLoaded", () => {
                     grid: { drawOnChartArea: false },
                     ticks: {
                         color: "#f97316",
-                        callback: (v) => v + " V/A"
+                        callback: (v) => v + " A"
                     },
                     title: {
                         display: true,
-                        text: "Voltage / Active Current",
+                        text: "Active Current (A)",
                         color: "#f97316"
                     }
                 },
@@ -227,7 +279,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     type: "linear",
                     position: "right",
                     suggestedMin: 100,
-                    suggestedMax: 150,
+                    suggestedMax: 180,
                     grid: { drawOnChartArea: false },
                     ticks: {
                         color: "#ef4444",
@@ -481,12 +533,31 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // 5. Update Chart
         if (telemetryChart) {
-            const now = new Date().toLocaleTimeString().split(" ")[0];
+            const currentBurnIn = Number(payload.burn_in_hours ?? 0);
+            
+            // Detect reset or scenario change by checking if time went backwards
+            // or if the scenario string changed.
+            if (currentBurnIn < window._lastBurnIn || payload.scenario !== currentScenario) {
+                telemetryChart.data.labels.fill("");
+                telemetryChart.data.datasets[0].data.fill(null);
+                telemetryChart.data.datasets[1].data.fill(null);
+                telemetryChart.data.datasets[2].data.fill(null);
+                telemetryChart.data.datasets[3].data.fill(50.0);
+                telemetryChart.data.datasets[4].data.fill(null);
+                currentScenario = payload.scenario;
+                window._missionSeconds = 0; // Reset physical clock to sync with progress bar reset
+            }
+            window._lastBurnIn = currentBurnIn;
+
+            const now = formatBurnInClock(currentBurnIn);
             telemetryChart.data.labels.push(now);
+            // Dataset order MUST match the chart config:
+            // [0]=Iddq, [1]=Voltage, [2]=Current, [3]=50uA limit line, [4]=Temp.
             telemetryChart.data.datasets[0].data.push(iddq);
             telemetryChart.data.datasets[1].data.push(v);
             telemetryChart.data.datasets[2].data.push(c);
-            telemetryChart.data.datasets[3].data.push(t);
+            telemetryChart.data.datasets[3].data.push(50.0);
+            telemetryChart.data.datasets[4].data.push(t);
 
             // FIX: defensive trim to the fixed window. The previous code did
             // exactly one shift() per push(), which silently froze the chart
@@ -498,6 +569,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 telemetryChart.data.datasets[1].data.shift();
                 telemetryChart.data.datasets[2].data.shift();
                 telemetryChart.data.datasets[3].data.shift();
+                telemetryChart.data.datasets[4].data.shift();
             }
 
             telemetryChart.update("none");
@@ -674,16 +746,14 @@ document.addEventListener("DOMContentLoaded", () => {
             const padLabels = Array(pad).fill("");
             telemetryChart.data.labels = [
                 ...padLabels,
-                ...recent.map((frame) => {
-                    const timestamp = frame.timestamp ? new Date(frame.timestamp) : new Date();
-                    return timestamp.toLocaleTimeString().split(" ")[0];
-                })
+                ...recent.map((frame) => formatBurnInClock(Number(frame.burn_in_hours ?? 0)))
             ];
             const padData = Array(pad).fill(null);
             telemetryChart.data.datasets[0].data = [...padData, ...recent.map((frame) => Number(frame.iddq_uA ?? frame.iddq ?? 10))];
             telemetryChart.data.datasets[1].data = [...padData, ...recent.map((frame) => Number(frame.voltage ?? 5))];
             telemetryChart.data.datasets[2].data = [...padData, ...recent.map((frame) => Number(frame.current ?? 1.2))];
-            telemetryChart.data.datasets[3].data = [...padData, ...recent.map((frame) => Number(frame.temperature ?? 125))];
+            telemetryChart.data.datasets[3].data = [...padData, ...recent.map(() => 50.0)];
+            telemetryChart.data.datasets[4].data = [...padData, ...recent.map((frame) => Number(frame.temperature ?? 125))];
             telemetryChart.update("none");
         } catch (error) {
             console.warn("Team history is unavailable; continuing with live telemetry.", error);

@@ -17,7 +17,7 @@ Traditional aerospace screening tests parts against static datasheet maximums (e
 
 ARJUNA provides:
 1. **Dynamic Outlier Screening (Module A)**: Multivariate Isolation Forest + lot-relative Z-score safety net catching sub-limit latent anomalies.
-2. **168h Endpoint Latent Drift Forecasting (Module B)**: Ordinary Least Squares (OLS) drift regression predicting 168h leakage from 24h burn-in data (**MAE: 0.567 µA**), saving **165.2 hours (98.3%)** of expensive chamber dwell time.
+2. **168h Endpoint Latent Drift Forecasting (Module B)**: Ordinary Least Squares (OLS) drift regression predicting the 168h endpoint from early (< 24h) burn-in telemetry. **HONEST (non-circular) MAE vs the real coupled physics trajectory: 25.06 µA** (systematic under-prediction of the super-linear, clamp-limited curve); the legacy circular figure of **0.567 µA** is retained only for historical comparison and is labeled as such in the benchmark report.
 3. **Latent Creep Detection (Module C)**: Tabular Cumulative Sum (CUSUM) filter with fixed sensor noise allowance ($k=0.5$) and risk-weighted decision thresholds ($h$).
 4. **Structured Explainable AI (XAI)**: Machine-readable telemetry verdicts with parametric deltas ($\Delta\sigma$), physical evidence, and actionable QA recommendations.
 5. **Production Supabase Integration**: Non-blocking asynchronous telemetry logging with Row-Level Security and offline in-memory fallback.
@@ -74,8 +74,8 @@ graph TD
 | SIH Requirement | Technical Specification | Source Implementation | Test Proof | Status |
 |---|---|---|---|---|
 | **Dynamic Outlier Detection** | Catch 45.2 µA outlier in 10 µA lot ($\Delta\sigma = +30.1\sigma$) under 50 µA static limit | [`Backend/isolation_forest.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/Backend/isolation_forest.py) | [`tests/test_ablation.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/tests/test_ablation.py) | **100% VERIFIED** |
-| **168h Latent Drift Forecast** | OLS regression predicting 168h endpoint from 24h data | [`Backend/isolation_forest.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/Backend/isolation_forest.py) | [`tests/test_unit.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/tests/test_unit.py)<br/>MAE = **0.567 µA** | **100% VERIFIED** |
-| **Early Rejection** | Dynamic safety slope thresholding | [`Backend/isolation_forest.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/Backend/isolation_forest.py) | **165.2 hours saved** (98.3%) | **100% VERIFIED** |
+| **168h Latent Drift Forecast** | OLS regression predicting 168h endpoint from early (< 24h) data | [`Backend/isolation_forest.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/Backend/isolation_forest.py) | [`tests/test_unit.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/tests/test_unit.py)<br/>HONEST MAE = **25.06 µA** vs real trajectory (legacy circular MAE 0.567 µA) | **IMPLEMENTED / BENCHMARKED** |
+| **Early Rejection** | Dynamic safety slope thresholding | [`Backend/isolation_forest.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/Backend/isolation_forest.py) | Lead-time figure derived from the legacy circular benchmark; see honest MAE above | **IMPLEMENTED** |
 | **Latent Creep Filter** | Tabular CUSUM $S_n^+ = \max(0, S_{n-1}^+ + X_n - (\mu + k))$ | [`Backend/cusum_drift.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/Backend/cusum_drift.py) | 0 false alarms on 1,000 cycles | **100% VERIFIED** |
 | **Mission Criticality** | Monotonic thresholds across Levels 1, 2, and 3 | [`Backend/criticality_config.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/Backend/criticality_config.py) | [`tests/test_criticality.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/tests/test_criticality.py) | **100% VERIFIED** |
 | **Explainable AI (XAI)** | Machine-readable evidence with parameter offsets and QA action | [`Backend/schemas.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/Backend/schemas.py) | [`tests/test_websocket.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/tests/test_websocket.py) | **100% VERIFIED** |
@@ -97,9 +97,9 @@ Evaluated across **7,500 unseen randomized operational vectors** in [`evaluate_m
 | **Precision** | $\ge 99.0\%$ | **99.71%** | **PASSED** |
 | **F1-Score** | $\ge 0.99$ | **0.9986** | **PASSED** |
 | **ROC-AUC Score** | $\ge 0.99$ | **0.9993** | **PASSED** |
-| **168h Drift Forecast MAE** | $< 2.0\ \mu\text{A}$ | **0.567 µA** | **PASSED** |
-| **168h Drift Forecast RMSE** | $< 3.0\ \mu\text{A}$ | **0.803 µA** | **PASSED** |
-| **Chamber Dwell Time Saved** | $> 75.0\%$ | **165.2 hours (98.3%)** | **PASSED** |
+| **168h Drift Forecast MAE** | $< 2.0\ \mu\text{A}$ | **25.06 µA** (HONEST vs real trajectory); legacy circular 0.567 µA | **FAILED (honest)** |
+| **168h Drift Forecast RMSE** | $< 3.0\ \mu\text{A}$ | **30.14 µA** (HONEST vs real trajectory); legacy circular 0.803 µA | **FAILED (honest)** |
+| **Chamber Dwell Time Saved** | $> 75.0\%$ | Derived from the legacy circular benchmark; not reproducible on the real trajectory | **LIMITED** |
 | **Single-Tick Inference Latency** | $< 10.0\text{ ms}$ | **2.85 ms** | **PASSED** |
 
 **Per-segment honesty breakdown** (post label-bias ground truth — no `sim_step >= 20`
@@ -134,13 +134,18 @@ structural labels; see `unseen_fault_benchmark.segment_metrics` in
 > All recall/precision/F1/ROC-AUC figures above are **measured on the validated synthetic
 > simulation domain**, not on real semiconductor hardware. **0% FNR means zero missed
 > defects *within this simulator*** — it is not claimed as a real-world zero-escape rate.
-> Module B's 0.567 µA MAE is computed against a **perfectly linear synthetic drift
-> generator** (in-domain). The [`OOD benchmark`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/evaluate_model.py)
+> Module B's forecast accuracy must be read honestly. The **legacy 0.567 µA MAE** was computed
+> by a seeded 100-part Monte-Carlo ensemble in which the ground truth was synthesized from the
+> **same linear generator Module B fits** — a circular benchmark that measures OLS self-consistency,
+> not physical forecast accuracy. Scoring Module B against the **real coupled physics trajectory**
+> (`Model/sample_data_168h.csv`, reproducible via `ARJUNA_REGEN_GT=1 python evaluate_model.py`)
+> yields a **non-circular MAE of 25.06 µA / RMSE 30.14 µA** (systematic under-prediction of the
+> super-linear, 150 µA-clamped curve). The [`OOD benchmark`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/evaluate_model.py)
 > (`benchmark_ood_generalization`) testifies honestly: OLS MAE rises to 1.4–9.4 µA under
 > non-linear degradation regimes, while Module C CUSUM (no linearity assumption) retains
 > high detection of persistent creep — bounding the generalization boundary with measured
 > data rather than asserting it. See [`reports/ablation_study.md`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/reports/ablation_study.md)
-> §5–§6 for the full OOD and threshold-sensitivity tables.
+> §2a and §5–§6 for the honest drift-forecast, OOD, and threshold-sensitivity tables.
 
 ---
 

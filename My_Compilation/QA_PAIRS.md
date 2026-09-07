@@ -22,7 +22,7 @@ During satellite manufacturing, microcircuits undergo **High-Temperature Operati
 ### 1.2 The Project ARJUNA Solution
 Project ARJUNA is an **AI-driven dynamic burn-in telemetry and screening engine**:
 1. **Module A (Multivariate Outlier Screening)**: Employs an **Isolation Forest** paired with a lot-relative statistical $3\sigma$ gate to catch anomalous parts like the **45.2 µA outlier** at the first checkpoint, rejecting them despite passing static thresholds.
-2. **Module B (168-Hour Endpoint Drift Forecasting)**: Uses an **Ordinary Least Squares (OLS)** linear trend model evaluated at hour 24. It predicts the expected leakage current at hour 168 (**MAE = 0.567 µA**). If the trajectory breaches dynamic safety boundaries, it executes **Early Rejection**, saving **144 to 165.2 hours (up to 98.3%)** of expensive chamber time.
+2. **Module B (168-Hour Endpoint Drift Forecasting)**: Uses an **Ordinary Least Squares (OLS)** linear trend model. It predicts the expected leakage current at hour 168. HONEST MAE vs the real coupled 0–168h physics trajectory is **25.06 µA** (systematic under-prediction of the super-linear, clamp-limited curve); the legacy circular **0.567 µA** is retained only for historical comparison. If the trajectory breaches dynamic safety boundaries, it executes **Early Rejection**, saving up to **144 to 165.2 hours (85.7–98.3%)** of expensive chamber time (lead-time figures derive from the legacy circular benchmark).
 3. **Module C (Latent Parametric Creep Detection)**: A stateful **Tabular Cumulative Sum (CUSUM)** filter that accumulates micro-shifts in leakage. Features a fixed noise allowance ($k=0.5\ \mu\text{A}$) and a per-DUT auto-baseline over its first 15 readings, making it invariant to healthy lot spread (0 false trips on 1,000 nominal cycles).
 4. **Mission Criticality Architecture**: Complies with **NASA EEE-INST-002** with tiered decision intervals:
    - **Level 1 (COTS / Ground Support)**: $h = 7.0$ (relaxed tolerance)
@@ -41,7 +41,7 @@ Project ARJUNA is an **AI-driven dynamic burn-in telemetry and screening engine*
 - **Decision Thresholds ($h$)**: Level 1 = $7.0$, Level 2 = $5.0$, Level 3 = $3.5$
 - **Early Rejection Savings**: Rejection at hour 24 saves $144\text{ hours}$ ($85.7\%$ chamber dwell time)
 - **Defect Recall**: $100.00\%$ (zero missed defects on 7,500 evaluated synthetic vectors)
-- **In-Domain Drift Forecast MAE**: $0.567\ \mu\text{A}$ ($0.583\ \mu\text{A}$ in the preserved Phase-0 baseline run)
+- **168h Drift Forecast MAE (HONEST)**: **25.06 µA** vs the real coupled trajectory (legacy circular 0.567 µA retained for comparison)
 - **Inference Latency**: $2.85\text{ ms}$ per telemetry frame
 - **Automated Test Suite**: 62 automated unit, API, WebSocket, security, and physics tests passing (100% green)
 
@@ -102,7 +102,7 @@ This gives ISRO engineers an immediate, auditable trail compliant with quality p
 - First-order **Thermal RC network** differential equations ($R_{th} = 16.667^\circ\text{C/W}$, $\tau \approx 30\text{s}$).
 - Power supply **Over-Current Protection (OCP) foldback** ($I_{clamp} = 8.0\text{A}, V_{collapse} = 0.4\text{V}$).
 - Sensor noise models (Gaussian jitter + 12-bit ADC quantization).
-- Virtual burn-in clock vs demo acceleration factor ($10\times$ on thermal dynamics, real hours on regression).
+- Canonical timebase: $t_{physical}$ in seconds, $t_{burnin}$ in hours; $drift_time$ is ALWAYS seconds derived from burn-in hours — no demo acceleration factor anywhere.
 
 #### Q&A for Member 2:
 
@@ -110,7 +110,7 @@ This gives ISRO engineers an immediate, auditable trail compliant with quality p
 *Answer:*  
 "It is strictly grounded in semiconductor physics. Nominal subthreshold leakage is governed by the Arrhenius relation:
 $$I_{leak}(T) = I_0 \cdot \exp\left(-\frac{E_a}{k_B} \left(\frac{1}{T} - \frac{1}{T_{ref}}\right)\right)$$
-where $E_a = 0.70\text{ eV}$ represents the silicon bandgap activation energy, $k_B$ is Boltzmann's constant, and $T_{ref} = 298.15\text{ K}$ (25°C). Junction temperature follows a first-order thermal RC differential equation driven by ambient chamber temperature (125°C) and internal $I^2 R$ Joule heating with thermal resistance $R_{th} = 16.67^\circ\text{C/W}$."
+where $E_a = 0.345\text{ eV}$ ($E_a/k_B = 4000\text{ K}$, single constant in `physics_constants.py`) is the implemented silicon junction-leakage activation energy, $k_B$ is Boltzmann's constant, and $T_{ref} = 298.15\text{ K}$ (25°C). Junction temperature follows a first-order thermal RC differential equation driven by ambient chamber temperature (125°C) and internal $I^2 R$ Joule heating with thermal resistance $R_{th} = 16.67^\circ\text{C/W}$."
 
 **Q2: What happens physically inside the chip during the 'Short Circuit' scenario?**  
 *Answer:*  
@@ -126,7 +126,7 @@ where $E_a = 0.70\text{ eV}$ represents the silicon bandgap activation energy, $
 
 **Q5: How does your burn-in clock work? How can a 168-hour test run during a 5-minute hackathon demo?**  
 *Answer:*  
-"We distinguish between virtual simulation time and demonstration wall-clock time. In our demo mode, each tick advances virtual burn-in time while applying an acceleration factor of $10\times$ to the thermal state. Crucially, Module B's regression math operates on the actual simulated burn-in hour timestamps, so the physics and regression metrics remain mathematically undistorted."
+"We use one canonical timebase across the whole system: physical time in seconds, burn-in time in hours, and demo pacing (ticks) kept strictly separate. drift_time is always physical seconds derived from burn-in hours, and a single Iddq creep law inside the simulator feeds the dataset, ground truth, live server and Module B — so the physics and regression metrics are consistent by construction, with no acceleration factor to justify."
 
 **Q6: What training and benchmark datasets did you generate?**  
 *Answer:*  
@@ -301,7 +301,7 @@ That represents an 85.7% saving on that specific test run, and under accelerated
 - **Precision**: $99.71\%$
 - **F1-Score**: $0.9986$
 - **ROC-AUC**: $0.9993$
-- **In-Domain 168h Drift Forecast MAE**: $0.567\ \mu\text{A}$
+- **168h Drift Forecast MAE (HONEST)**: **25.06 µA** vs the real coupled trajectory (legacy circular 0.567 µA retained for comparison)
 - **Per-Tick Inference Latency**: $2.85\text{ ms}$"
 
 **Q4: What happens if a corrupted sensor packet arrives with `NaN`, infinity, or negative voltage?**  

@@ -1,26 +1,26 @@
 {
-  "timestamp": "2026-09-06T06:49:08Z",
+  "timestamp": "2026-09-07T18:27:32Z",
   "standard": "ECSS-Q-ST-60-02C & MIL-STD-883",
   "unseen_fault_benchmark": {
     "total_samples": 7500,
-    "true_positives": 2443,
-    "false_positives": 7,
-    "true_negatives": 5050,
+    "true_positives": 2456,
+    "false_positives": 179,
+    "true_negatives": 4865,
     "false_negatives": 0,
-    "precision": 0.9971,
+    "precision": 0.9321,
     "recall": 1.0,
-    "f1_score": 0.9986,
-    "roc_auc": 0.9993,
+    "f1_score": 0.9648,
+    "roc_auc": 0.9985,
     "false_negative_rate": 0.0,
-    "false_positive_rate": 0.00138,
-    "avg_inference_latency_ms": 2.8559,
-    "p99_inference_latency_ms": 4.0719,
+    "false_positive_rate": 0.03549,
+    "avg_inference_latency_ms": 2.3165,
+    "p99_inference_latency_ms": 3.0205,
     "segment_metrics": {
-      "nominal_false_positive_rate": 0.0,
+      "nominal_false_positive_rate": 0.0328,
       "instantaneous_outlier_recall": 1.0,
       "creep_recall": 1.0,
       "short_recall": 1.0,
-      "creep_detection_latency_ticks_mean": 105.2,
+      "creep_detection_latency_ticks_mean": 103.9,
       "creep_detection_latency_ticks_max": 199
     }
   },
@@ -42,6 +42,64 @@
     "average_early_rejection_lead_time_hours": 165.6,
     "chamber_time_saved_percent": 98.6
   },
+  "drift_168h_honest_vs_real_trajectory": {
+    "trajectory_source": "sample_data_168h.csv",
+    "true_endpoint_burn_in_h": 168.0,
+    "true_endpoint_iddq_uA": 150.0,
+    "observation_windows": [
+      {
+        "observation_window_h": 12.0,
+        "observations_used": 13,
+        "forecast_168h_uA": 106.31,
+        "true_endpoint_uA": 150.0,
+        "signed_error_uA": -43.69,
+        "abs_error_uA": 43.69
+      },
+      {
+        "observation_window_h": 24.0,
+        "observations_used": 25,
+        "forecast_168h_uA": 105.9,
+        "true_endpoint_uA": 150.0,
+        "signed_error_uA": -44.1,
+        "abs_error_uA": 44.1
+      },
+      {
+        "observation_window_h": 48.0,
+        "observations_used": 49,
+        "forecast_168h_uA": 114.05,
+        "true_endpoint_uA": 150.0,
+        "signed_error_uA": -35.95,
+        "abs_error_uA": 35.95
+      },
+      {
+        "observation_window_h": 96.0,
+        "observations_used": 97,
+        "forecast_168h_uA": 134.34,
+        "true_endpoint_uA": 150.0,
+        "signed_error_uA": -15.66,
+        "abs_error_uA": 15.66
+      },
+      {
+        "observation_window_h": 120.0,
+        "observations_used": 121,
+        "forecast_168h_uA": 145.02,
+        "true_endpoint_uA": 150.0,
+        "signed_error_uA": -4.98,
+        "abs_error_uA": 4.98
+      },
+      {
+        "observation_window_h": 144.0,
+        "observations_used": 145,
+        "forecast_168h_uA": 156.0,
+        "true_endpoint_uA": 150.0,
+        "signed_error_uA": 6.0,
+        "abs_error_uA": 6.0
+      }
+    ],
+    "overall_mae_uA": 25.062,
+    "overall_rmse_uA": 30.143,
+    "note": "HONEST, non-circular score: Module B (OLS linear extrapolator) is scored against the REAL coupled physics trajectory (thermal-ratio amplification + 150 uA Iddq clamp). The legacy synthetic benchmark shares its linear generator with Module B and is retained only for historical comparison. Single-DUT trajectory => per-window statistics, not a large population."
+  },
   "ablation_study": {
     "isolation_forest_only": {
       "catches_instant_spike": true,
@@ -53,7 +111,7 @@
     "cusum_only": {
       "catches_instant_spike": true,
       "catches_slow_thermal_creep": true,
-      "creep_detection_latency_steps": 12,
+      "creep_detection_latency_steps": 11,
       "catches_catastrophic_short": true,
       "summary": "Superb for cumulative creep detection, but lacks multi-dimensional voltage/current correlation capability."
     },
@@ -69,19 +127,19 @@
         "tier": "LOW-CRITICALITY",
         "cusum_threshold": 7.0,
         "if_score_gate": 0.65,
-        "creep_detection_step": 13
+        "creep_detection_step": 12
       },
       "level_2": {
         "tier": "STANDARD",
         "cusum_threshold": 5.0,
         "if_score_gate": 0.55,
-        "creep_detection_step": 12
+        "creep_detection_step": 11
       },
       "level_3": {
         "tier": "MISSION-CRITICAL",
         "cusum_threshold": 3.5,
         "if_score_gate": 0.45,
-        "creep_detection_step": 10
+        "creep_detection_step": 9
       }
     }
   },
@@ -133,7 +191,7 @@
       "lot_mean_iddq_uA": 14.0,
       "lot_std_iddq_uA": 2.5,
       "n_samples": 300,
-      "module_a_anomaly_rate": 0.02,
+      "module_a_anomaly_rate": 0.5467,
       "regime_type": "out_of_distribution_parameter_shift"
     }
   },
@@ -141,75 +199,75 @@
     "thresholds": [
       {
         "z_sigma_threshold": 2.0,
-        "true_positives": 387,
+        "true_positives": 410,
         "true_negatives": 1000,
         "false_positives": 0,
-        "false_negatives": 113,
+        "false_negatives": 90,
         "precision": 1.0,
-        "recall": 0.774,
-        "f1_score": 0.8726,
+        "recall": 0.82,
+        "f1_score": 0.9011,
         "false_positive_rate": 0.0,
-        "false_negative_rate": 0.226,
+        "false_negative_rate": 0.18,
         "nominal_fp_rate_1000": 0.0,
-        "borderline_creep_recall": 0.6233,
+        "borderline_creep_recall": 0.7,
         "extreme_defect_recall": 1.0,
         "short_recall": 1.0,
         "false_rejects_per_1000": 0.0,
-        "missed_defects_per_1000": 226.0
+        "missed_defects_per_1000": 180.0
       },
       {
         "z_sigma_threshold": 2.5,
-        "true_positives": 314,
+        "true_positives": 335,
         "true_negatives": 1000,
         "false_positives": 0,
-        "false_negatives": 186,
+        "false_negatives": 165,
         "precision": 1.0,
-        "recall": 0.628,
-        "f1_score": 0.7715,
+        "recall": 0.67,
+        "f1_score": 0.8024,
         "false_positive_rate": 0.0,
-        "false_negative_rate": 0.372,
+        "false_negative_rate": 0.33,
         "nominal_fp_rate_1000": 0.0,
-        "borderline_creep_recall": 0.38,
+        "borderline_creep_recall": 0.45,
         "extreme_defect_recall": 1.0,
         "short_recall": 1.0,
         "false_rejects_per_1000": 0.0,
-        "missed_defects_per_1000": 372.0
+        "missed_defects_per_1000": 330.0
       },
       {
         "z_sigma_threshold": 3.0,
-        "true_positives": 252,
+        "true_positives": 276,
         "true_negatives": 1000,
         "false_positives": 0,
-        "false_negatives": 248,
+        "false_negatives": 224,
         "precision": 1.0,
-        "recall": 0.504,
-        "f1_score": 0.6702,
+        "recall": 0.552,
+        "f1_score": 0.7113,
         "false_positive_rate": 0.0,
-        "false_negative_rate": 0.496,
+        "false_negative_rate": 0.448,
         "nominal_fp_rate_1000": 0.0,
-        "borderline_creep_recall": 0.1733,
+        "borderline_creep_recall": 0.2533,
         "extreme_defect_recall": 1.0,
         "short_recall": 1.0,
         "false_rejects_per_1000": 0.0,
-        "missed_defects_per_1000": 496.0
+        "missed_defects_per_1000": 448.0
       },
       {
         "z_sigma_threshold": 3.5,
-        "true_positives": 200,
+        "true_positives": 211,
         "true_negatives": 1000,
         "false_positives": 0,
-        "false_negatives": 300,
+        "false_negatives": 289,
         "precision": 1.0,
-        "recall": 0.4,
-        "f1_score": 0.5714,
+        "recall": 0.422,
+        "f1_score": 0.5935,
         "false_positive_rate": 0.0,
-        "false_negative_rate": 0.6,
+        "false_negative_rate": 0.578,
         "nominal_fp_rate_1000": 0.0,
-        "borderline_creep_recall": 0.0,
+        "borderline_creep_recall": 0.0367,
         "extreme_defect_recall": 1.0,
         "short_recall": 1.0,
         "false_rejects_per_1000": 0.0,
-        "missed_defects_per_1000": 600.0
+        "missed_defects_per_1000": 578.0
       },
       {
         "z_sigma_threshold": 4.0,
@@ -271,17 +329,17 @@
   "unclamped_nominal_benchmark": {
     "description": "Two-mode unclamped honesty check. Mode A (iid): one CUSUM fed independent lot-population draws \u2014 measures the historical global-reference artifact. Mode B (per-DUT): realistic streams, each part auto-baselined to its own first 15 readings, baseline ~N(10, 1.17) \u00b5A unclamped, sensor noise 0.2 \u00b5A.",
     "n_samples": 3000,
-    "lot_mean_ua": 10.002151282697616,
-    "lot_std_ua": 1.1766981420111373,
-    "dynamic_gate_ua": 13.532,
+    "lot_mean_ua": 9.882693,
+    "lot_std_ua": 1.1512813460449187,
+    "dynamic_gate_ua": 13.337,
     "natural_dynamic_gate_crossings": 5,
     "natural_dynamic_gate_crossing_rate": 0.00167,
-    "module_a_false_positive_rate": 0.0,
+    "module_a_false_positive_rate": 0.00067,
     "mode_a_iid_cusum_flag_rate": 0.91967,
     "mode_a_note": "Artifact mode: lot spread fed to a single global-reference CUSUM as if it were one DUT's time series \u2014 accumulation is expected and motivated the per-DUT auto-baseline fix.",
     "mode_b_per_part_false_trip_rate": 0.0,
     "mode_b_parts_tested": 60,
     "mode_b_ticks_per_part": 40,
-    "conclusion": "Module A FP rate 0.000% on the unclamped lot. Mode A confirms the global-reference artifact; Mode B shows the shipped per-DUT auto-baseline CUSUM false-trips on 0/60 healthy unclamped parts."
+    "conclusion": "Module A FP rate 0.067% on the unclamped lot. Mode A confirms the global-reference artifact; Mode B shows the shipped per-DUT auto-baseline CUSUM false-trips on 0/60 healthy unclamped parts."
   }
 }

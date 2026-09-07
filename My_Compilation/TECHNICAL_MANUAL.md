@@ -69,7 +69,7 @@ graph TD
 - **Early Rejection Rule**:
   Quarantine triggered if:
   $$\hat{I}_{DDQ}(168h) > 50.0\ \mu\text{A} \quad \text{OR} \quad \hat{I}_{DDQ}(168h) > (\mu_{lot} + 3\sigma_{lot})$$
-- **Empirical Accuracy**: Mean Absolute Error (MAE) = **0.567 µA**, Root Mean Squared Error (RMSE) = **0.803 µA**, saving an average of **165.2 burn-in hours (98.3%)** per defective part.
+- **Forecast Accuracy**: **HONEST (non-circular)** — on the real coupled physics trajectory (`Model/sample_data_168h.csv`) Module B achieves MAE = **25.06 µA**, RMSE = **30.14 µA**, systematically under-predicting the endpoint because the physical Iddq curve is super-linear (Arrhenius thermal amplification) and clamp-limited at 150 µA. The legacy circular MAE of **0.567 µA / RMSE 0.803 µA** (ground truth synthesized from Module B's own linear generator) is retained only for historical comparison in `reports/ablation_study.md` §2b.
 
 ### 2.3 Module C: Tabular Cumulative Sum (CUSUM)
 - **Recursive Formula**:

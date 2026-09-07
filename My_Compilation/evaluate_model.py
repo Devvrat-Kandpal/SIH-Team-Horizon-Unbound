@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import random
 import sys
 import time
@@ -139,9 +140,14 @@ def benchmark_unseen_datasets(
         if step % 200 == 0:
             cusum.reset()
             sim.reset()
-        t, v, c = sim.step(dt=1.0, mode="drift", drift_time=sim_step, drift_rate=0.01)
-        iq = round(10.0 + 0.18 * sim_step + random.gauss(0, 0.2), 2)
-        pd_val = round(4.50 + 0.01 * sim_step + random.uniform(-0.04, 0.04), 3)
+        # M-04 fix: use the SINGLE canonical Iddq/prop-delay law from the
+        # simulator. Each 200-tick cycle maps to a full 168 h canonical
+        # burn-in trajectory (drift_time is canonical physical seconds).
+        t_phys = (sim_step / 200.0) * 168.0 * 3600.0
+        t, v, c = sim.step(dt=1.0, mode="drift", drift_time=t_phys)
+        iq, pd_val = sim.compute_iddq_and_prop_delay(
+            t, v, mode="drift", drift_time=t_phys
+        )
 
         t0 = time.perf_counter()
         res = detector.detect_spike(current=c, voltage=v, temp=t, iddq=iq, prop_delay=pd_val, criticality_level=2)
@@ -332,6 +338,83 @@ def benchmark_drift_against_ground_truth(csv_168h: Path) -> Dict[str, Any]:
         },
         "average_early_rejection_lead_time_hours": round(avg_hours_saved, 1),
         "chamber_time_saved_percent": round(pct_chamber_time_saved, 1),
+    }
+
+
+# ==============================================================================
+# 2b. HONEST DRIFT PREDICTION VS REAL CONTINUOUS PHYSICAL TRAJECTORY (audit F09)
+# ==============================================================================
+def benchmark_drift_against_real_trajectory(csv_168h: Path) -> Dict[str, Any]:
+    """Honest Module B forecast evaluation against the REAL continuous physical
+    trajectory, NOT a synthetic linear ground truth generated from Module B's own
+    linear assumption (which made the legacy benchmark circular).
+
+    Loads Model/sample_data_168h.csv (the canonical 0-168 h coupled physics
+    trajectory, including thermal-ratio amplification and the 150 uA Iddq clamp).
+    For several observation windows, Module B is fed the real (burn_in_h, iddq)
+    telemetry observed up to that window and forecasts the 168 h endpoint, scored
+    against the true telemetry endpoint at 168 h.
+
+    This is a single-DUT trajectory, so per-window errors are honest but not a
+    large Monte-Carlo population; statistical breadth is a documented limitation.
+    """
+    if not csv_168h.exists():
+        return {"error": f"ground-truth trajectory not found: {csv_168h}"}
+
+    df = pd.read_csv(csv_168h).sort_values("burn_in_hours").reset_index(drop=True)
+    true_endpoint_ua = float(df["iddq"].iloc[-1])
+    true_endpoint_h = float(df["burn_in_hours"].iloc[-1])
+
+    windows = (12.0, 24.0, 48.0, 96.0, 120.0, 144.0)
+    rows: List[Dict[str, Any]] = []
+    abs_errors: List[float] = []
+    signed_errors: List[float] = []
+
+    for win_h in windows:
+        obs = df[df["burn_in_hours"] <= win_h]
+        if obs.empty:
+            continue
+        predictor = LinearRegressionDriftPredictor(
+            lot_mean_iddq=10.0, lot_std_iddq=1.17, datasheet_limit_ua=50.0
+        )
+        last = None
+        for h_val, iddq_val in obs[["burn_in_hours", "iddq"]].to_numpy(dtype=float):
+            last = predictor.update(float(h_val), float(iddq_val))
+        forecast = float(last["forecast_168h_uA"]) if last else 0.0
+        err = forecast - true_endpoint_ua
+        abs_errors.append(abs(err))
+        signed_errors.append(err)
+        rows.append(
+            {
+                "observation_window_h": win_h,
+                "observations_used": int(len(obs)),
+                "forecast_168h_uA": round(forecast, 2),
+                "true_endpoint_uA": round(true_endpoint_ua, 2),
+                "signed_error_uA": round(err, 2),
+                "abs_error_uA": round(abs(err), 2),
+            }
+        )
+
+    mae = float(np.mean(abs_errors)) if abs_errors else 0.0
+    rmse = (
+        float(np.sqrt(np.mean(np.square(np.array(signed_errors, dtype=np.float64)))))
+        if signed_errors
+        else 0.0
+    )
+    return {
+        "trajectory_source": str(csv_168h.name),
+        "true_endpoint_burn_in_h": true_endpoint_h,
+        "true_endpoint_iddq_uA": round(true_endpoint_ua, 2),
+        "observation_windows": rows,
+        "overall_mae_uA": round(mae, 3),
+        "overall_rmse_uA": round(rmse, 3),
+        "note": (
+            "HONEST, non-circular score: Module B (OLS linear extrapolator) is scored "
+            "against the REAL coupled physics trajectory (thermal-ratio amplification + "
+            "150 uA Iddq clamp). The legacy synthetic benchmark shares its linear "
+            "generator with Module B and is retained only for historical comparison. "
+            "Single-DUT trajectory => per-window statistics, not a large population."
+        ),
     }
 
 
@@ -818,14 +901,48 @@ def run_full_evaluation(unclamped_nominal_samples: int = 3000):
     print(f"  -> Inference Latency:       {unseen_results['avg_inference_latency_ms']:.4f} ms/tick")
 
     print("\n[Phase 2/5] Evaluating Drift Predictor vs 168h Ground Truth Telemetry...")
+    # Canonical GT provenance (M-05): regenerate the 0-168 h continuous
+    # trajectory with the production simulator when missing or when
+    # ARJUNA_REGEN_GT=1 -- never hand-authored, never a different physics law.
+    if not csv_168h.exists() or os.environ.get("ARJUNA_REGEN_GT") == "1":
+        try:
+            from Backend.simulator import write_ground_truth_168h_csv
+        except ImportError:
+            from simulator import write_ground_truth_168h_csv  # type: ignore[no-redef]
+        print("  -> Regenerating canonical continuous GT trajectory...")
+        write_ground_truth_168h_csv(str(csv_168h))
+    # LEGACY (historical) drift benchmark -- CIRCULAR: it synthesizes a ground
+    # truth from the SAME linear generator that Module B fits, so its tiny MAE is
+    # not a meaningful physical forecast error. Retained for historical comparison
+    # only (audit F09); the HONEST benchmark below is the primary Module B metric.
     drift_results = benchmark_drift_against_ground_truth(csv_168h)
-    print(f"  -> Mean Absolute Error (MAE): {drift_results['mean_absolute_error_uA']} uA")
-    print(f"  -> Root Mean Squared Error:   {drift_results['root_mean_squared_error_uA']} uA")
+
+    # HONEST drift benchmark (audit F09): score Module B against the REAL
+    # continuous physics trajectory (thermal-ratio amplification + 150 uA clamp).
+    honest_drift_results = benchmark_drift_against_real_trajectory(csv_168h)
+    print("\n[Phase 2a/HONEST] Module B forecast vs REAL 168h trajectory (non-circular):")
     print(
-        f"  -> 95% Prediction Interval:   [{drift_results['prediction_interval_95_uA'][0]} uA, {drift_results['prediction_interval_95_uA'][1]} uA]"
+        f"  -> True endpoint (telemetry): {honest_drift_results['true_endpoint_iddq_uA']} uA "
+        f"@ {honest_drift_results['true_endpoint_burn_in_h']} h"
+    )
+    for w in honest_drift_results["observation_windows"]:
+        print(
+            f"  -> observe {w['observation_window_h']:>5.0f}h: forecast {w['forecast_168h_uA']:6.2f} uA | "
+            f"true {w['true_endpoint_uA']:6.2f} uA | err {w['signed_error_uA']:+7.2f} uA"
+        )
+    print(
+        f"  -> HONEST overall MAE: {honest_drift_results['overall_mae_uA']} uA | "
+        f"RMSE: {honest_drift_results['overall_rmse_uA']} uA"
+    )
+
+    print("\n[Phase 2b/LEGACY] Synthetic linear-GT benchmark (historical, circular -- retained for comparison only):")
+    print(f"  -> Mean Absolute Error (MAE): {drift_results['mean_absolute_error_uA']} uA  [circular]")
+    print(f"  -> Root Mean Squared Error:   {drift_results['root_mean_squared_error_uA']} uA  [circular]")
+    print(
+        f"  -> 95% Prediction Interval:   [{drift_results['prediction_interval_95_uA'][0]} uA, {drift_results['prediction_interval_95_uA'][1]} uA]  [circular]"
     )
     print(
-        f"  -> Avg Chamber Time Saved:    {drift_results['average_early_rejection_lead_time_hours']} hours ({drift_results['chamber_time_saved_percent']}%)"
+        f"  -> Avg Chamber Time Saved:    {drift_results['average_early_rejection_lead_time_hours']} hours ({drift_results['chamber_time_saved_percent']}%)  [circular]"
     )
 
     print("\n[Phase 3/5] Generating Multi-Model Ablation Study...")
@@ -885,6 +1002,7 @@ def run_full_evaluation(unclamped_nominal_samples: int = 3000):
         "standard": "ECSS-Q-ST-60-02C & MIL-STD-883",
         "unseen_fault_benchmark": unseen_results,
         "drift_168h_ground_truth_benchmark": drift_results,
+        "drift_168h_honest_vs_real_trajectory": honest_drift_results,
         "ablation_study": ablation_results,
         "ood_generalization_benchmark": ood_results,
         "threshold_sensitivity": threshold_results,
@@ -913,6 +1031,12 @@ def run_full_evaluation(unclamped_nominal_samples: int = 3000):
         for r in threshold_results["thresholds"]
     ]
     th_table = "\n".join(th_lines)
+    honest_lines = [
+        f"| {w['observation_window_h']:.0f} | {w['forecast_168h_uA']:.2f} | {w['true_endpoint_uA']:.2f} | "
+        f"{w['signed_error_uA']:+.2f} | {w['abs_error_uA']:.2f} |"
+        for w in honest_drift_results["observation_windows"]
+    ]
+    honest_rows = "\n".join(honest_lines)
 
     md_content = f"""# Project ARJUNA: Quantitative Aerospace Evaluation Report
 **Standard:** ECSS-Q-ST-60-02C Space Product Assurance | MIL-STD-883 Method 1015
@@ -936,12 +1060,31 @@ def run_full_evaluation(unclamped_nominal_samples: int = 3000):
 | False Negatives (FN) | {unseen_results["false_negatives"]} |
 
 ## 2. 168h Latent Drift Forecast vs Ground Truth
-- **Mean Absolute Error (MAE):** {drift_results["mean_absolute_error_uA"]} µA
-- **Root Mean Squared Error (RMSE):** {drift_results["root_mean_squared_error_uA"]} µA
-- **Mean Absolute Percentage Error (MAPE):** {drift_results["mean_absolute_percentage_error"]}%
-- **95% Prediction Interval:** [{drift_results["prediction_interval_95_uA"][0]} µA, {drift_results["prediction_interval_95_uA"][1]} µA]
-- **Average Early Rejection Lead Time:** {drift_results["average_early_rejection_lead_time_hours"]} hours
-- **Chamber Time Saved:** **{drift_results["chamber_time_saved_percent"]}%** (144 hours saved on 24h rejection)
+
+### 2a. HONEST (non-circular) — Module B vs the REAL physics trajectory
+True endpoint: **{honest_drift_results["true_endpoint_iddq_uA"]} µA** @ {honest_drift_results["true_endpoint_burn_in_h"]} h
+(real coupled trajectory: thermal-ratio amplification + 150 µA Iddq clamp)
+| Observation Window (h) | Forecast 168h (µA) | True Endpoint (µA) | Signed Error (µA) | Abs Error (µA) |
+|---|---|---|---|---|
+{honest_rows}
+- **HONEST overall MAE:** {honest_drift_results["overall_mae_uA"]} µA
+- **HONEST overall RMSE:** {honest_drift_results["overall_rmse_uA"]} µA
+
+> **Honest interpretation:** Module B is an OLS *linear* extrapolator; against the real coupled
+> physics trajectory its forecast systematically **under-predicts** the endpoint (large negative
+> bias), because the physical Iddq curve is super-linear (Arrhenius thermal amplification) and is
+> further clamp-limited at 150 µA. This is the truthful Module B forecast error and is reported
+> without inflation. {honest_drift_results["note"]}
+
+### 2b. LEGACY (historical, CIRCULAR — retained for comparison only)
+The legacy benchmark synthesizes its ground truth from the SAME linear generator Module B fits,
+so the small errors below are a measure of OLS self-consistency, NOT physical forecast accuracy.
+- **Mean Absolute Error (MAE):** {drift_results["mean_absolute_error_uA"]} µA [circular]
+- **Root Mean Squared Error (RMSE):** {drift_results["root_mean_squared_error_uA"]} µA [circular]
+- **Mean Absolute Percentage Error (MAPE):** {drift_results["mean_absolute_percentage_error"]}% [circular]
+- **95% Prediction Interval:** [{drift_results["prediction_interval_95_uA"][0]} µA, {drift_results["prediction_interval_95_uA"][1]} µA] [circular]
+- **Average Early Rejection Lead Time:** {drift_results["average_early_rejection_lead_time_hours"]} hours [circular]
+- **Chamber Time Saved:** **{drift_results["chamber_time_saved_percent"]}%** [circular]
 
 ## 3. Multi-Model Ablation Study
 | Configuration | Instant Spike Recall | Slow Creep Recall | Short Circuit Recall | Nominal False Alarms |

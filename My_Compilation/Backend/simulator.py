@@ -20,6 +20,35 @@ import re
 from datetime import UTC, datetime
 from typing import Any, Dict, Tuple
 
+from Backend.physics_constants import (
+    ADC_BITS,
+    C_TH_J_PER_C,
+    DEGRAD_ARRHENIUS_A0_S,
+    DEGRAD_ARRHENIUS_EA_KB,
+    DEGRAD_INITIAL_C,
+    DEGRADATION_MODEL,
+    I_FUNCTIONAL_A,
+    I_LEAK_BASE_A,
+    I_LIMIT_A,
+    I_MAX_A,
+    I_STATIC_BLOCKS_A,
+    IDDQ_DRIFT_RATE_UA_PER_H,
+    IDDQ_MAX_UA,
+    IDDQ_MIN_UA,
+    IDDQ_NOMINAL_LOT_MEAN_UA,
+    R_SHORT_OHM,
+    R_SOURCE_OHM,
+    R_TH_C_PER_W,
+    R_TH_DRIFT_RATE_PER_H,
+    T_AMB_C,
+    T_BURNIN_C,
+    T_MAX_C,
+    TRAINING_DRIFT_SPAN_H,
+    V_MAX_V,
+    V_SOURCE_V,
+    Ea_kB_KELVIN,
+)
+
 logger = logging.getLogger("simulator")
 
 
@@ -54,39 +83,43 @@ class ComponentSimulator:
 
     def __init__(self, criticality_level: int = 2) -> None:
         # Nominal Baseline Operating Point
-        self.T_amb: float = 25.0  # Ambient Room Temp (°C)
+        self.T_amb: float = T_AMB_C  # Ambient Room Temp (°C)
         self.T_junction: float = (
-            125.0  # Initial Junction Temp — MIL-STD-883 static burn-in (°C)
+            T_BURNIN_C  # Initial Junction Temp — MIL-STD-883 static burn-in (°C)
         )
-        self.V_source: float = 5.0  # Ideal DC Supply (V)
-        self.I_functional: float = 1.15  # Dynamic functional load (A)
+        self.V_source: float = V_SOURCE_V  # Ideal DC Supply (V)
+        self.I_functional: float = I_FUNCTIONAL_A  # Dynamic functional load (A)
         self.I_static_blocks: float = (
-            0.04999  # Static bias/termination (A) - deliberately NOT physical leakage
+            I_STATIC_BLOCKS_A  # Static bias/termination (A) - deliberately NOT physical leakage
         )
         # Total rail load = 1.15 + 0.04999 + 10uA = 1.20A nominal
 
         # Semiconductor Physical Constants
-        self.Ea_kB: float = 4000.0  # Activation energy term (Ea / kB in Kelvin)
+        self.Ea_kB: float = Ea_kB_KELVIN  # Activation energy term (Ea / kB in Kelvin)
         self.I_leak_base: float = (
-            10e-6  # True DUT leakage current at 125°C reference (10 µA)
+            I_LEAK_BASE_A  # True DUT leakage current at 125°C reference (10 µA)
         )
         self.R_th: float = (
-            16.667  # Thermal Resistance (°C/W) — calibrated for 125°C steady-state at 6.0W
+            R_TH_C_PER_W  # Thermal Resistance (°C/W) — calibrated for 125°C steady-state at 6.0W
         )
-        self.C_th: float = 1.5  # Thermal Capacitance (J/°C)
+        self.C_th: float = C_TH_J_PER_C  # Thermal Capacitance (J/°C)
 
         # Power Bench & Hardware Constraints
-        self.R_source: float = 0.02  # Supply output impedance (Ohms)
-        self.I_limit: float = 8.0  # Over-Current Protection limit (A)
-        self.R_short: float = 0.05  # Resistance during catastrophic short (Ohms)
+        self.R_source: float = R_SOURCE_OHM  # Supply output impedance (Ohms)
+        self.I_limit: float = I_LIMIT_A  # Over-Current Protection limit (A)
+        self.R_short: float = R_SHORT_OHM  # Resistance during catastrophic short (Ohms)
 
         # Sensor & ADC Specs (12-bit ADCs)
-        self.adc_bits: int = 12
-        self.v_max: float = 10.0
+        self.adc_bits: int = ADC_BITS
+        self.v_max: float = V_MAX_V
         self.t_max: float = (
-            175.0  # Junction destruction ceiling — typical Si absolute max rating (°C)
+            T_MAX_C  # Junction destruction ceiling — typical Si absolute max rating (°C)
         )
-        self.i_max: float = 15.0
+        self.i_max: float = I_MAX_A
+
+        # Degradation state（candidate Arrhenius model；1.0 = pristine）
+        self.degradation: float = DEGRAD_INITIAL_C
+        self._last_drift_time_s: float = 0.0  # canonical burn-in clock tracker (candidate model)
 
         # Reliability / Mission Criticality Metadata
         self.criticality_level: int = (
@@ -150,6 +183,12 @@ class ComponentSimulator:
         """
         Advances the simulation by dt seconds.
         Modes: 'normal', 'drift' (thermal degradation), 'short' (electrical short).
+
+        NOTE: `drift_rate` and `degradation_factor` are accepted only for
+        backward-compatibility with legacy callers; they are NOT applied by the
+        current physics. Drift is governed by the authoritative constants
+        R_TH_DRIFT_RATE_PER_H (thermal-resistance creep) and
+        IDDQ_DRIFT_RATE_UA_PER_H (Iddq creep) in Backend/physics_constants.py.
         """
         if scenario:
             mode = (
@@ -179,7 +218,12 @@ class ComponentSimulator:
                 i_actual = min(i_demand, self.I_limit)
                 if i_actual < i_demand:
                     # OCP/foldback engaged: supply cannot deliver i_demand,
-                    # so voltage collapses to whatever the load resistance allows
+                    # so voltage collapses to whatever the load resistance allows.
+                    # NOTE: This causes total dissipated power to drop significantly,
+                    # which in turn causes the *average package junction temperature*
+                    # to decrease. This is an intended physical consequence of OCP
+                    # foldback. Localized hotspots may still melt, but this model
+                    # simulates the bulk package thermal mass.
                     v_actual = i_actual * r_load
                 else:
                     v_actual = max(0.0, self.V_source - (i_actual * self.R_source))
@@ -191,12 +235,40 @@ class ComponentSimulator:
                 v_actual = max(0.0, self.V_source - (i_actual * self.R_source))
 
             # 4. Thermal Dynamics (dT/dt = (P_in - P_out) / C_th)
+            # The integration timestep (dt, sub_dt) models physical seconds (fast thermal transient),
+            # while `burnin_h` and `drift_time` represent accelerated HTOL aging time.
+            # This represents a quasi-static assumption where thermal equilibrium is
+            # reached instantly relative to the slow aging timescale.
             p_dissipated = v_actual * i_actual
-            r_effective = (
-                self.R_th * (1.0 + drift_rate * drift_time)
-                if mode == "drift"
-                else self.R_th
-            )
+            burnin_h = drift_time / 3600.0   # canonical: drift_time is SECONDS (t_physical_s)
+            if mode == "drift":
+                if DEGRADATION_MODEL == "accumulated_arrhenius":
+                    # Accumulate on the CANONICAL BURN-IN CLOCK (delta of drift_time), not
+                    # thermal sim time: under demo pacing (server.py HOURS_PER_TICK=0.4 with
+                    # dt=1.0 s), thermal time and burn-in hours diverge ~5760:1, so an
+                    # integrator in sub_dt would see only ~420 s of physical time over a
+                    # 168 h run and never drift. Rate per burn-in hour at temperature T:
+                    #   dD/dh = DEGRAD_ARRHENIUS_A0_S * exp(-Ea_kb / T_K) * 3600.0
+                    # A0 is endpoint-calibrated so that at the 125 C design point the
+                    # candidate matches the validated linear endpoint D(168h)=1.336.
+                    delta_h = max(0.0, (drift_time - self._last_drift_time_s) / 3600.0)
+                    if delta_h > 0.0:
+                        self.degradation += (
+                            DEGRAD_ARRHENIUS_A0_S
+                            * math.exp(
+                                -DEGRAD_ARRHENIUS_EA_KB / (self.T_junction + 273.15)
+                            )
+                            * 3600.0
+                            * delta_h
+                        )
+                        self.degradation = min(self.degradation, 10.0)
+                    self._last_drift_time_s = drift_time
+                    r_effective = self.R_th * self.degradation
+                else:
+                    # Legacy linear thermal-resistance drift (hours-based, mild, survivable)
+                    r_effective = self.R_th * (1.0 + R_TH_DRIFT_RATE_PER_H * burnin_h)
+            else:
+                r_effective = self.R_th
             p_dissipated_heat = (self.T_junction - self.T_amb) / r_effective
 
             dT_dt = (p_dissipated - p_dissipated_heat) / self.C_th
@@ -229,8 +301,19 @@ class ComponentSimulator:
         thermal_ratio = math.exp(self.Ea_kB * (1.0 / t0_kelvin - 1.0 / t_kelvin))
 
         if mode == "short":
+            # Empirical fault signature (M-17): U(85,130) uA is a documented
+            # empirical catastrophic-short distribution, NOT physics-derived.
             iddq_val = random.uniform(85.0, 130.0)
             pd_val = random.uniform(9.0, 11.0)
+        elif mode == "isro_outlier":
+            # ISRO prompt scenario: 45 uA leakage part in a 10 uA lot.
+            iddq_val = 45.2 * thermal_ratio + random.uniform(-0.5, 0.5)
+            pd_val = (
+                4.50
+                + 0.008 * (temp - 125.0)
+                - 0.05 * (volt - 5.0)
+                + 0.1
+            )
         elif mode == "drift":
             # DEGRADATION MODEL CLASSIFICATION:
             # drift_factor is a LINEAR placeholder modeling simplified parametric drift
@@ -240,13 +323,22 @@ class ComponentSimulator:
             # implemented here. This is a clearly-scoped simulation assumption; see the
             # OOD benchmark (evaluate_model.benchmark_ood_generalization) which quantifies
             # Module B's behaviour when this linearity assumption is violated.
-            drift_factor = 1.0 + 0.005 * drift_time
-            iddq_val = 10.0 * thermal_ratio * drift_factor + random.gauss(0, 0.4)
+            # Canonical timebase (M-02): drift_time arrives in SECONDS; convert once.
+            burnin_h = max(0.0, drift_time) / 3600.0
+            # Single Iddq creep law (M-04), hours-based per physics_constants:
+            #   iddq(t) = (10 + 0.45 * burn_in_h) * Arrhenius(T)
+            drift_factor = 1.0 + (
+                IDDQ_DRIFT_RATE_UA_PER_H / IDDQ_NOMINAL_LOT_MEAN_UA
+            ) * burnin_h
+            iddq_val = (
+                IDDQ_NOMINAL_LOT_MEAN_UA * thermal_ratio * drift_factor
+                + random.gauss(0, 0.4)
+            )
             pd_val = (
                 4.50
                 + 0.008 * (temp - 125.0)
                 - 0.05 * (volt - 5.0)
-                + 0.02 * drift_time
+                + 0.015 * burnin_h
                 + random.gauss(0, 0.03)
             )
         else:
@@ -259,14 +351,15 @@ class ComponentSimulator:
                 + random.uniform(-0.08, 0.08)
             )
 
-        iddq_val = round(max(5.0, min(150.0, iddq_val)), 2)
+        iddq_val = round(max(IDDQ_MIN_UA, min(IDDQ_MAX_UA,  iddq_val)), 2)
         pd_val = round(max(3.0, min(15.0, pd_val)), 3)
         return iddq_val, pd_val
 
     def reset(self) -> None:
         """Resets component thermal state back to the MIL-STD-883 burn-in baseline."""
-        self.T_junction = 125.0
+        self.T_junction = T_BURNIN_C
         self.destroyed = False
+        self.degradation = DEGRAD_INITIAL_C
 
 
 # ─────────────────────────────────────────────────────────────
@@ -356,9 +449,13 @@ def generate_dataset(
             # and non-destructive; loop breaks early if destruction is reached anyway,
             # preventing short-circuit rows from being silently mislabeled as drift.
             logger.info("Writing %d contiguous drift rows...", n_drift)
+            # Canonical timebase (M-02/M-03): drift rows span TRAINING_DRIFT_SPAN_H
+            # of REAL burn-in hours; drift_time is always physical seconds.
+            drift_span_s = TRAINING_DRIFT_SPAN_H * 3600.0
             for drift_sec in range(n_drift):
+                t_phys = (drift_sec / max(1, n_drift)) * drift_span_s
                 t, v, i = sim.step(
-                    dt=1.0, mode="drift", drift_time=drift_sec, drift_rate=0.0008
+                    dt=1.0, mode="drift", drift_time=t_phys, drift_rate=0.0008
                 )
                 if sim.destroyed:
                     logger.warning(
@@ -368,8 +465,15 @@ def generate_dataset(
                     )
                     break
                 iq, pd_val = sim.compute_iddq_and_prop_delay(
-                    t, v, mode="drift", drift_time=drift_sec
+                    t, v, mode="drift", drift_time=t_phys
                 )
+                
+                # Ground truth independent of simulation step
+                lot_mean = IDDQ_NOMINAL_LOT_MEAN_UA
+                lot_std = 1.17
+                is_anomaly = (iq > (lot_mean + 3.0 * lot_std) or t > 127.0)
+                label = "drift_anomaly" if is_anomaly else "normal"
+
                 ts_str = current_time.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
                 writer.writerow(
                     [
@@ -380,7 +484,7 @@ def generate_dataset(
                         iq,
                         pd_val,
                         sim.criticality_level,
-                        "drift_anomaly",
+                        label,
                     ]
                 )
                 current_time += float_to_timedelta(1.0)
@@ -411,37 +515,96 @@ def generate_dataset(
                 step_idx += 1
 
             # 4. Hidden Ground Truth Records (0h, 24h, 96h, 168h)
-            logger.info("Writing hidden ground truth records for 0h, 24h, 96h, 168h...")
+            # M-05 fix: GT labels are the ENDPOINTS of one CONTINUOUS 0->168 h
+            # integration using the SAME production simulator and canonical
+            # seconds timebase -- not single-step snapshots.
+            logger.info(
+                "Integrating continuous 0-168 h ground-truth trajectory (M-05)..."
+            )
             sim.reset()
-            for target_h, label in [(0, "0h"), (24, "24h"), (96, "96h"), (168, "168h")]:
-                t, v, i = sim.step(
-                    dt=1.0, mode="drift", drift_time=target_h, drift_rate=0.0008
-                )
-                iq, pd_val = sim.compute_iddq_and_prop_delay(
-                    t, v, mode="drift", drift_time=target_h
-                )
-                ts_str = (current_time + float_to_timedelta(target_h * 3600)).strftime(
-                    "%Y-%m-%dT%H:%M:%S.%f"
-                )[:-3] + "Z"
-                writer.writerow(
-                    [
-                        ts_str,
-                        v,
-                        i,
-                        t,
-                        iq,
-                        pd_val,
-                        sim.criticality_level,
-                        f"{label}_record",
-                    ]
-                )
-                step_idx += 1
+            gt_targets = {0: "0h", 24: "24h", 96: "96h", 168: "168h"}
+            gt_t_phys = 0.0
+            for gt_h in range(0, 169):
+                for _ in range(3600):
+                    t, v, i = sim.step(
+                        dt=1.0, mode="drift",
+                        drift_time=gt_t_phys, drift_rate=0.0008,
+                    )
+                    gt_t_phys += 1.0
+                    if sim.destroyed:
+                        break
+                if sim.destroyed:
+                    logger.warning(
+                        "GT DUT destroyed at %.2f h; truncating GT records.",
+                        gt_t_phys / 3600.0,
+                    )
+                    break
+                if gt_h in gt_targets:
+                    iq, pd_val = sim.compute_iddq_and_prop_delay(
+                        t, v, mode="drift", drift_time=gt_t_phys
+                    )
+                    ts_str = (
+                        current_time + float_to_timedelta(gt_h * 3600)
+                    ).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+                    writer.writerow(
+                        [
+                            ts_str,
+                            v,
+                            i,
+                            t,
+                            iq,
+                            pd_val,
+                            sim.criticality_level,
+                            f"{gt_targets[gt_h]}_record",
+                        ]
+                    )
+                    step_idx += 1
 
     except OSError as exc:
         logger.error("Failed writing dataset to %s: %s", filename, exc)
         raise
 
     logger.info("Dataset generation complete: %d total rows written.", step_idx)
+
+
+def write_ground_truth_168h_csv(filename: str) -> None:
+    """Write the canonical 0->168 h ground-truth trajectory (M-05 provenance).
+
+    One CONTINUOUS integration with the production simulator and the canonical
+    seconds timebase; one row per simulated hour. This file (Model/
+    sample_data_168h.csv) is the single Module B benchmark reference -- it is
+    never hand-authored or generated by a different physics law.
+    """
+    sim = ComponentSimulator()
+    sim.reset()
+    t_phys = 0.0
+    rows = []
+    for gt_h in range(0, 169):
+        t, v, i = 0.0, 0.0, 0.0
+        for _ in range(3600):
+            t, v, i = sim.step(
+                dt=1.0, mode="drift", drift_time=t_phys, drift_rate=0.0008
+            )
+            t_phys += 1.0
+            if sim.destroyed:
+                break
+        if sim.destroyed:
+            logger.warning(
+                "GT DUT destroyed at %.2f h; GT truncated.", t_phys / 3600.0
+            )
+            break
+        iq, pd_val = sim.compute_iddq_and_prop_delay(
+            t, v, mode="drift", drift_time=t_phys
+        )
+        rows.append((float(gt_h), t, v, i, iq, pd_val))
+    with open(filename, "w", newline="", encoding="utf-8") as fh:
+        writer = csv.writer(fh)
+        writer.writerow(
+            ["burn_in_hours", "temperature", "voltage", "current", "iddq", "prop_delay"]
+        )
+        for row in rows:
+            writer.writerow([f"{row[0]:.2f}"] + [f"{x:.4f}" for x in row[1:]])
+    logger.info("Ground-truth trajectory written: %s (%d hourly rows)", filename, len(rows))
 
 
 def export_to_sqlite(

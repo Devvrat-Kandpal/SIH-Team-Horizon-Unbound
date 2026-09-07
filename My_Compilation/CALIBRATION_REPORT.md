@@ -27,7 +27,7 @@ graph LR
 - **Burn-In Junction Temperature ($T_j$)**: $125.0^\circ\text{C}$ (398.15 K) baseline, calibrated per MIL-STD-883 Method 1015 Condition A.
 - **DC Supply Rail ($V_{dd}$)**: $5.000\text{ V} \pm 0.02\text{ V}$ with bus load regulation ($R_{source} = 0.02\ \Omega$).
 - **Nominal Functional Load Current ($I_{active}$)**: $1.150\text{ A}$ core switching current.
-- **Reference Leakage Current ($I_{leak0}$)**: $0.050\text{ A}$ at $125^\circ\text{C}$.
+- **Reference Leakage Current ($I_{leak0}$)**: $10\ \mu\text{A}$ (nominal lot mean at $125^\circ\text{C}$). NOTE: the $\approx 0.05\text{ A}$ block current is $I_{static\ blocks}$ (peripheral static blocks), a DIFFERENT quantity from DUT junction leakage and not part of the Iddq screening path.
 - **Total Nominal Operating Current ($I_{total}$)**: $1.200\text{ A} \pm 0.02\text{ A}$.
 
 ---
@@ -42,11 +42,11 @@ $$I_{leak}(T) = I_0 \cdot \exp\left( \frac{E_a}{k_B} \left( \frac{1}{T_0} - \fra
 Where:
 - $T$: Junction temperature in Kelvin ($T_K = T_{^\circ\text{C}} + 273.15$).
 - $T_0$: Reference temperature ($125^\circ\text{C} = 398.15\text{ K}$).
-- $E_a$: Activation energy for silicon junction reverse-bias leakage $\approx 0.70\text{ eV}$.
+- $E_a$: Activation energy for silicon junction reverse-bias leakage $\approx 0.345\text{ eV}$ (implemented as $E_a/k_B = 4000\text{ K}$ in `physics_constants.py`).
 - $k_B$: Boltzmann constant ($8.617333 \times 10^{-5}\text{ eV/K}$).
 - $\frac{E_a}{k_B} \approx 4000\text{ K}$.
 
-**Empirical Result**: Leakage current accelerates by **$> 100\times$** between room temperature ($25^\circ\text{C}$) and HTOL stress temperature ($125^\circ\text{C}$), providing the accelerated aging necessary to reveal latent wafer-level defects.
+**Empirical Result**: Leakage current accelerates by **$\approx 29\times$** between room temperature ($25^\circ\text{C}$) and HTOL stress temperature ($125^\circ\text{C}$) with $E_a/k_B = 4000\text{ K}$, providing the accelerated aging necessary to reveal latent wafer-level defects.
 
 ### 2.2 First-Order Thermal RC Dynamics
 The thermal dissipation and thermal capacitance of the packaged silicon die are modeled as:

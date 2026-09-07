@@ -74,8 +74,8 @@
 - **Action**: Click **"Reset Chamber"**, then click **"Inject Thermal Drift"**. Show the creeping leakage current slope on the charts and the 168h forecast pill.
 - **Member 4 (Time-Series AI Specialist)**:
   > *"Next is the most costly challenge in aerospace manufacturing: latent parametric creep. A component might appear healthy at hour 10, but its subthreshold leakage current is slowly degrading.  
-  > Watch Module B in action: our Ordinary Least Squares drift predictor computes the degradation trajectory in virtual burn-in hours. By hour 24, ARJUNA accurately forecasts that by hour 168, this component will reach 78 µA, severely violating space standards.  
-  > We trigger Early Rejection at hour 24. That saves 144 hours of chamber operational time per component (85.7% of the 168-hour window); the measured benchmark average across components is 165.2 hours (98.3%) — a reduction in burn-in chamber energy, throughput bottleneck, and facility costs."*
+  > Watch Module B in action: our Ordinary Least Squares drift predictor computes the degradation trajectory in virtual burn-in hours. By hour 24, ARJUNA projects the 168-hour endpoint leakage. Because the physical Iddq curve is super-linear (Arrhenius thermal amplification) and clamp-limited at 150 µA, the honest OLS forecast MAE vs the real trajectory is ~25 µA with a systematic under-prediction bias — reported transparently in the benchmark.  
+  > We trigger Early Rejection at hour 24, saving up to 144 hours of chamber operational time per component (85.7% of the 168-hour window). The historical “165.2 hours (98.3%)” figure derives from the legacy circular benchmark and is retained only for comparison.  
 
 ---
 
@@ -109,7 +109,7 @@
 - **Member 6 (Testing, Validation & Demo Engineer)**:
   > *"To prove ARJUNA is not just a hackathon demo, we evaluated 7,500 unseen randomized operational vectors (all metrics are measured on the validated synthetic simulation domain, not real hardware):  
   > - Defect Recall: 100.00% with zero missed defects within this simulator — per-segment: 100% instantaneous outliers, 100% creep, 100% shorts.  
-  > - 168h Drift Forecast Error (in-domain linear drift): Mean Absolute Error of 0.567 µA; MAE rises honestly to 1.4–9.4 µA under non-linear OOD regimes, which Module C CUSUM compensates for.  
+  > - 168h Drift Forecast Error: honest (non-circular) MAE of **25.06 µA** vs the real coupled 0–168h physics trajectory (systematic under-prediction of the super-linear, 150 µA-clamped curve); the legacy circular 0.567 µA value is retained only for historical comparison.  
   > - Inference Latency: 2.85 milliseconds per tick.  
   > Project ARJUNA is fully tested with 70 passing automated tests (unit, API, WebSocket, security/RBAC, Supabase persistence, criticality, OOD generalization, threshold sensitivity, and adversarial telemetry), containerized with Docker, and completely traceable to ECSS-Q-ST-60-02C. Thank you, and we are ready for your questions."*
 
@@ -126,8 +126,8 @@
 | 3 | Why is CUSUM k = 0.5? | **M4** | k/σ ≈ 0.43 sub-σ allowance on Iddq domain; h carries criticality weighting; per-DUT auto-baseline makes it lot-position invariant |
 | 4 | What if noise/lot spread is different on real hardware? | **M4** | Auto-baseline re-calibrates per part; k/h re-derived from measured σ — that's a config change, not a redesign |
 | 5 | Why two Module B interfaces? | **M4** | `predict_168h` = ECSS 24h gate-check; `update()` = continuous rolling monitor; both share the same static+dynamic rejection semantics |
-| 6 | Is the physics real? 50 mA vs 10 µA leakage? | **M2** | Rescaled: I_leak_base = 10 µA true DUT leakage (matches Iddq spec & legacy reference); Arrhenius Ea=0.70 eV; thermal RC R_th=16.667°C/W |
-| 7 | Time scaling: 168h in 5 minutes? | **M2** | Documented DEMO_ACCELERATION_FACTOR=10× on the thermal state only; Module B's regression axis uses real hours — no scientific distortion |
+| 6 | Is the physics real? 50 mA vs 10 µA leakage? | **M2** | Rescaled: I_leak_base = 10 µA true DUT leakage (matches Iddq spec & legacy reference); Arrhenius Ea=0.345 eV (Ea/kB=4000 K); thermal RC R_th=16.667°C/W |
+| 7 | Time scaling: 168h in 5 minutes? | **M2** | Single canonical timebase: drift_time is always real burn-in seconds derived from burn_in_hours; one Iddq creep law shared by simulator, dataset, ground truth, server and Module B — no acceleration factor, no train/serve skew |
 | 8 | Zero false positives — real or clamped? | **M6** | Measured: Module A 0% FP unclamped; CUSUM 0/60 with auto-baseline; 3σ gate sees statistically expected ~0.17% tail — all in the report |
 | 9 | NaN / corrupted telemetry? | **M6** | Dedicated adversarial suite: NaN/Inf/negative/999µA/missing — fail-safe handling, 62 tests green |
 | 10 | Can anonymous clients write to your DB? | **M5** | RLS migration restricts INSERT to authenticated/service_role; 4-tier RBAC + rate limiter on API; WS handshake token |

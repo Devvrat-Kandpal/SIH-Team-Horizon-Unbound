@@ -38,6 +38,12 @@ try:
     from Backend.isolation_forest import LinearRegressionDriftPredictor, MultivariateAnomalyDetector
     from Backend.schemas import FaultInjectionRequest
     from Backend.security import ALLOWED_ORIGINS, get_security_status, verify_operator_access, verify_websocket_auth
+    from Backend.physics_constants import (
+        IDDQ_DATASHEET_LIMIT_UA,
+        IDDQ_LIVE_CLAMP_MAX_UA,
+        IDDQ_LIVE_CLAMP_MIN_UA,
+        burnin_hours_to_seconds,
+    )
     from Backend.simulator import ComponentSimulator
 except ImportError:
     from cusum_drift import DriftDetector  # type: ignore[no-redef]
@@ -49,6 +55,12 @@ except ImportError:
         get_security_status,
         verify_operator_access,
         verify_websocket_auth,
+    )
+    from physics_constants import (  # type: ignore[no-redef]
+        IDDQ_DATASHEET_LIMIT_UA,
+        IDDQ_LIVE_CLAMP_MAX_UA,
+        IDDQ_LIVE_CLAMP_MIN_UA,
+        burnin_hours_to_seconds,
     )
     from simulator import ComponentSimulator  # type: ignore[no-redef]
 
@@ -648,74 +660,43 @@ async def websocket_endpoint(websocket: WebSocket):
             # Always advance time forward regardless of scenario
             burn_in_hours = min(168.0, burn_in_hours + HOURS_PER_TICK)
 
+            # M-04 fix: the server computes NO Iddq physics of its own.
+            # Every scenario consumes component_sim.compute_iddq_and_prop_delay()
+            # -- the single authoritative Iddq/prop-delay source (Backend/simulator.py).
+            # M-02/M-03 fix: drift_time is ALWAYS canonical physical seconds derived
+            # from real burn-in hours via burnin_hours_to_seconds(). There is NO local
+            # acceleration factor; HOURS_PER_TICK below is demo pacing only and the
+            # Module B regression axis remains real burn-in hours.
             if current_scenario == "nominal":
                 sim_t, sim_v, sim_c = component_sim.step(dt=1.0, mode="normal")
-                # Couple Iddq and propagation delay to junction temperature and supply voltage via Arrhenius & CMOS physics
-                t_kelvin = sim_t + 273.15
-                t0_kelvin = 125.0 + 273.15
-                thermal_ratio = math.exp(
-                    component_sim.Ea_kB * (1.0 / t0_kelvin - 1.0 / t_kelvin)
+                sim_iddq, sim_pd = component_sim.compute_iddq_and_prop_delay(
+                    sim_t, sim_v, mode="normal"
                 )
-                sim_iddq = round(10.0 * thermal_ratio + random.gauss(0, 0.15), 2)
-                # H1 Clamp: Enforces a physically defensible lot-population bound representing
-                # a pre-screened HTOL lot (±15% around nominal 10µA).
-                sim_iddq = max(9.0, min(11.5, sim_iddq))
-                sim_pd = round(
-                    4.50
-                    + 0.008 * (sim_t - 125.0)
-                    - 0.05 * (sim_v - 5.0)
-                    + random.uniform(-0.04, 0.04),
-                    3,
+                # M-10: healthy-channel clamp (pre-screened HTOL lot bound) from
+                # physics_constants -- population sigma stays in the offline domain.
+                sim_iddq = max(
+                    IDDQ_LIVE_CLAMP_MIN_UA, min(IDDQ_LIVE_CLAMP_MAX_UA, sim_iddq)
                 )
 
             elif current_scenario == "isro_outlier":
                 # ISRO prompt: 45 uA leakage in 10 uA lot - caught at 24h check
                 sim_t, sim_v, sim_c = component_sim.step(dt=1.0, mode="normal")
-                t_kelvin = sim_t + 273.15
-                t0_kelvin = 125.0 + 273.15
-                thermal_ratio = math.exp(
-                    component_sim.Ea_kB * (1.0 / t0_kelvin - 1.0 / t_kelvin)
-                )
-                sim_iddq = round(45.2 * thermal_ratio + random.uniform(-0.5, 0.5), 2)
-                sim_pd = round(
-                    4.50 + 0.008 * (sim_t - 125.0) - 0.05 * (sim_v - 5.0) + 0.1, 3
+                sim_iddq, sim_pd = component_sim.compute_iddq_and_prop_delay(
+                    sim_t, sim_v, mode="isro_outlier"
                 )
 
             elif current_scenario == "thermal_drift":
-                # Latent creep - MODULE B core scenario: Iddq climbs with thermal creep
-                # Uses Member 2's thermal RC drift model with explicit accelerated scaling.
-                # NOTE: DEMO_ACCELERATION_FACTOR is an intentional, documented demonstration mode
-                # to visibly compress 168h of thermal state into a 6-minute live presentation.
-                # Module B's regression axis (burn_in_hours) remains uncompressed for scientific integrity.
-                DEMO_ACCELERATION_FACTOR = 10.0
+                # Latent creep - MODULE B core scenario: Iddq climbs per the single
+                # canonical creep law inside compute_iddq_and_prop_delay().
+                drift_t_phys = burnin_hours_to_seconds(burn_in_hours)
                 sim_t, sim_v, sim_c = component_sim.step(
                     dt=1.0,
                     mode="drift",
-                    drift_time=burn_in_hours * DEMO_ACCELERATION_FACTOR,
+                    drift_time=drift_t_phys,
                     drift_rate=0.005,
                 )
-                t_kelvin = sim_t + 273.15
-                t0_kelvin = 125.0 + 273.15
-                thermal_ratio = math.exp(
-                    component_sim.Ea_kB * (1.0 / t0_kelvin - 1.0 / t_kelvin)
-                )
-                drift_creep = 0.45 * burn_in_hours
-                sim_iddq = round(
-                    min(
-                        80.0,
-                        (10.0 + drift_creep) * thermal_ratio + random.gauss(0, 0.05),
-                    ),
-                    2,
-                )
-                sim_pd = round(
-                    min(
-                        6.5,
-                        4.50
-                        + 0.008 * (sim_t - 125.0)
-                        - 0.05 * (sim_v - 5.0)
-                        + 0.015 * burn_in_hours,
-                    ),
-                    3,
+                sim_iddq, sim_pd = component_sim.compute_iddq_and_prop_delay(
+                    sim_t, sim_v, mode="drift", drift_time=drift_t_phys
                 )
 
             elif current_scenario == "electrical_short":

@@ -21,25 +21,74 @@ from Backend.simulator import ComponentSimulator
 
 
 def test_arrhenius_leakage_acceleration():
-    """Validates exponential Arrhenius leakage growth between 25°C and 125°C."""
-    T0_K = 273.15 + 25.0  # 298.15 K
-    T_hot_K = 273.15 + 125.0  # 398.15 K
-    kB_eV = 8.617333e-5
-    Ea = 0.70  # Silicon junction activation energy (eV)
-
-    exponent = (Ea / kB_eV) * (1.0 / T0_K - 1.0 / T_hot_K)
-    theoretical_acceleration_factor = math.exp(exponent)
-
-    assert (
-        theoretical_acceleration_factor > 100.0
-    ), "HTOL 125°C must significantly accelerate silicon leakage"
+    """M-07 fix: test the ACTUAL implementation (_arrhenius_leakage) and the
+    REAL activation energy constant (Ea_kB_KELVIN = 4000 K ~ 0.345 eV), not a
+    re-derived equation with different constants."""
+    from Backend.physics_constants import Ea_kB_KELVIN, I_LEAK_BASE_A
 
     sim = ComponentSimulator(criticality_level=2)
-    telemetry_nominal = sim.step_telemetry(scenario="nominal")
 
-    # Standby current at 125°C nominal burn-in must remain well within datasheet limit (50 µA)
+    T_ref_C = 25.0
+    T_hot_C = 125.0
+    leak_ref = sim._arrhenius_leakage(T_ref_C)
+    leak_hot = sim._arrhenius_leakage(T_hot_C)
+
+    # Direction invariant: higher temperature -> strictly higher leakage
+    assert leak_hot > leak_ref > 0.0
+
+    # Magnitude invariant: matches the implemented Ea constant (~29x for 4000 K)
+    t0_k = T_ref_C + 273.15
+    t_hot_k = T_hot_C + 273.15
+    expected_ratio = math.exp(Ea_kB_KELVIN * (1.0 / t0_k - 1.0 / t_hot_k))
+    assert math.isclose(
+        leak_hot / leak_ref, expected_ratio, rel_tol=1e-9
+    ), "Leakage ratio must match exp(Ea_kB * (1/T0 - 1/T)) with the code's Ea"
+
+    # Implemented Ea corresponds to ~0.345 eV (4000 K), NOT the outdated 0.70 eV
+    assert math.isclose(Ea_kB_KELVIN * 8.617333e-5, 0.345, rel_tol=0.01)
+    # Documented acceleration between 25C and 125C is ~29x, NOT ">100x"
+    assert 20.0 < expected_ratio < 40.0
+
+    # Base magnitude (M-08): 10 uA at the 125 C reference temperature; the
+    # 25 C value must be the Arrhenius-scaled base (~0.34 uA with Ea_kB=4000 K)
+    leak_125 = sim._arrhenius_leakage(125.0)
+    assert math.isclose(leak_125 * 1e6, I_LEAK_BASE_A * 1e6, rel_tol=0.5)
+    assert math.isclose(
+        leak_ref * 1e6, I_LEAK_BASE_A * 1e6 / expected_ratio, rel_tol=0.1
+    )
+
+    # Standby current at 125 C nominal burn-in stays well within datasheet limit
+    telemetry_nominal = sim.step_telemetry(scenario="nominal")
     assert 5.0 <= telemetry_nominal["iddq_uA"] <= 20.0
     assert 120.0 <= telemetry_nominal["temperature"] <= 130.0
+
+
+def test_timestep_convergence_destruction_time():
+    """M-15: destruction-time event must converge as dt decreases."""
+    sim_hi = ComponentSimulator(criticality_level=2)
+    sim_lo = ComponentSimulator(criticality_level=2)
+
+    def time_to_destroy(sim, dt):
+        t_phys = 0.0
+        # Cap at 400 simulated hours to bound the search
+        max_steps = int(400 * 3600 / dt)
+        for _ in range(max_steps):
+            sim.step(dt=dt, mode="drift", drift_time=t_phys, drift_rate=0.005)
+            t_phys += dt
+            if sim.destroyed:
+                return t_phys / 3600.0
+        return None
+
+    t_hi = time_to_destroy(sim_hi, dt=1.0)
+    t_lo = time_to_destroy(sim_lo, dt=0.5)
+
+    assert t_hi is not None, "DUT must destroy under drift at dt=1.0"
+    assert t_lo is not None, "DUT must destroy under drift at dt=0.5"
+    # Convergence: halving dt must change the destruction hour by < 15%
+    assert abs(t_lo - t_hi) / t_hi < 0.15, (
+        "Destruction time not converged: dt=1.0 -> %.2f h, dt=0.5 -> %.2f h"
+        % (t_hi, t_lo)
+    )
 
 
 def test_adc_quantization_resolution():
