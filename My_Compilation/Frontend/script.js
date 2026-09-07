@@ -539,6 +539,12 @@ document.addEventListener("DOMContentLoaded", () => {
             if (currentBurnIn < window._lastBurnIn || payload.scenario !== currentScenario) {
                 currentScenario = payload.scenario;
                 window._missionSeconds = 0; // Reset physical clock to sync with progress bar reset
+                
+                // Clear old alerts to prevent false error impressions on new runs
+                if (alertFeedEl) {
+                    alertFeedEl.innerHTML = '';
+                }
+                lastAlertMode = "nominal";
             }
             window._lastBurnIn = currentBurnIn;
 
