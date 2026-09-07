@@ -535,15 +535,8 @@ document.addEventListener("DOMContentLoaded", () => {
         if (telemetryChart) {
             const currentBurnIn = Number(payload.burn_in_hours ?? 0);
             
-            // Detect reset or scenario change by checking if time went backwards
-            // or if the scenario string changed.
+            // Detect reset or scenario change
             if (currentBurnIn < window._lastBurnIn || payload.scenario !== currentScenario) {
-                telemetryChart.data.labels.fill("");
-                telemetryChart.data.datasets[0].data.fill(null);
-                telemetryChart.data.datasets[1].data.fill(null);
-                telemetryChart.data.datasets[2].data.fill(null);
-                telemetryChart.data.datasets[3].data.fill(50.0);
-                telemetryChart.data.datasets[4].data.fill(null);
                 currentScenario = payload.scenario;
                 window._missionSeconds = 0; // Reset physical clock to sync with progress bar reset
             }
