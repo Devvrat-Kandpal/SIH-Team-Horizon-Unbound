@@ -43,7 +43,12 @@ def test_development_warns_not_fails_with_default_keys():
     for k in ("ARJUNA_API_KEY", "ARJUNA_ADMIN_KEY", "ARJUNA_QA_KEY", "ARJUNA_VIEWER_KEY"):
         env.pop(k, None)
     proc = subprocess.run(
-        [sys.executable, "-c", "import sys; sys.path.insert(0,'.'); sys.path.insert(0,'Backend'); import security; print('OK')"],
+        [
+            sys.executable,
+            "-c",
+            "import sys; sys.path.insert(0,'.'); sys.path.insert(0,'Backend'); "
+            "import security; print('OK')",
+        ],
         cwd=str(root),
         env=env,
         capture_output=True,
@@ -143,3 +148,40 @@ def test_websocket_handshake_security(client):
     with client.websocket_connect(f"/ws?token={API_KEY}") as ws:
         frame = ws.receive_json()
         assert "voltage" in frame
+
+
+def test_production_fails_closed_when_security_disabled():
+    """Production + SECURITY_ENABLED=false must refuse to start (P0-03 fail-closed)."""
+    root = Path(__file__).resolve().parent.parent
+    env = dict(os.environ)
+    env["ENVIRONMENT"] = "production"
+    env["SECURITY_ENABLED"] = "false"
+    # Use strong, non-default keys so ONLY the security-disabled guard is tested.
+    env["ARJUNA_API_KEY"] = "prod-open-key-a-strong-0081"
+    env["ARJUNA_ADMIN_KEY"] = "prod-open-key-b-strong-0082"
+    env["ARJUNA_QA_KEY"] = "prod-open-key-c-strong-0083"
+    env["ARJUNA_VIEWER_KEY"] = "prod-open-key-d-strong-0084"
+    proc = subprocess.run(
+        [sys.executable, "-c", "import sys; sys.path.insert(0,'.'); sys.path.insert(0,'Backend'); import security"],
+        cwd=str(root),
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode != 0, "production with SECURITY_ENABLED=false must fail to import"
+    assert "SECURITY_ENABLED=false" in (proc.stdout + proc.stderr)
+
+
+def test_demo_config_endpoint_transport_contract(client):
+    """GET /api/config advertises the demo-auth transport contract (P0-02).
+
+    In the current (development) test environment the endpoint exposes the demo
+    operator credential so the SIH demo can authenticate the frontend. The guard
+    against leaking it in production is enforced by security.is_production_env()
+    and is covered by the fail-closed production tests above.
+    """
+    resp = client.get("/api/config")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["auth_header"] == "X-API-Key"
+    assert body["ws_query"] == "api_key"

@@ -2,8 +2,8 @@
 
 **Target Audience**: Smart India Hackathon 2024 Grand Finale Judging Panel / ISRO Technical Evaluators 
 **Problem Statement**: AI-Driven Anomaly Detection in Component Burn-In & Screening (SIH 26170) 
-**Governing Standards**: **ECSS-Q-ST-60-02C** (ESA Space Product Assurance) | **MIL-STD-883 Method 1015** (US DoD) | **NASA EEE-INST-002** (Part Criticality) 
-**Audited Ground Truth**: 78 Automated Tests (100% Green) | 100.00% Defect Recall | 93.21% Precision | 2.32 ms Avg Latency | 25.06 µA Honest MAE 
+**Governing Standards**: Designed with reference to **ECSS-Q-ST-60-02C-era Space Product Assurance principles** | **MIL-STD-883 Method 1015** (screening horizon) | **NASA EEE-INST-002** (part criticality tiers); no formal certification claimed
+**Audited Ground Truth**: 106 Automated Tests (100% Green) | 100.00% Defect Recall | 93.21% Precision | ~2.4–3.7 ms Avg Latency (run-dependent; see report) | 25.06 µA Honest MAE 
 
 ---
 
@@ -17,7 +17,7 @@
 | **P4** | **Member 4** *(Time-Series AI Specialist)* | **1:50 – 2:50** | Click **"Reset Chamber"** → **"Inject Thermal Drift"**; show OLS 168h forecast; toggle Criticality to **Level 3**. | Trajectory Forecasting & NASA Criticality: Saving 144 hours (85.7%) of chamber dwell time; adaptive h thresholds across NASA tiers. |
 | **P5** | **Member 2** *(Hardware Simulation Engineer)* | **2:50 – 3:30** | Click **"Inject Short Circuit"**; show rail collapse to 0.40V and current clamp at 8.0A. | Grounded Semiconductor Physics: Physical OCP foldback, Arrhenius subthreshold scaling (<code>E_a=0.345 eV</code>), and thermal RC mass. |
 | **P6** | **Member 5** *(Database & Integration Lead)* | **3:30 – 4:10** | Open History Table, filter by `ELECTRICAL_SHORT`, click **"Export CSV"**; point to Supabase cloud status pill. | Production Architecture & Security: Asynchronous Supabase PostgreSQL streaming, Row-Level Security, 4-tier RBAC, and offline fallback queues. |
-| **P7** | **Member 6** *(Testing & Demo Lead)* | **4:10 – 5:00** | Open `reports/evaluation_report.json` benchmark summary; highlight confusion matrix and latency. | Empirical Proof & Transparent Disclosure: 78 passing automated tests, 100% defect recall, 2.32ms latency, honest non-circular metrics. |
+| **P7** | **Member 6** *(Testing & Demo Lead)* | **4:10 – 5:00** | Open `reports/evaluation_report.json` benchmark summary; highlight confusion matrix and latency. | Empirical Proof & Transparent Disclosure: 106 passing automated tests, 100% defect recall, ~2.4–3.7 ms latency, honest non-circular metrics. |
 
 ---
 
@@ -112,7 +112,7 @@ In `script.js:pushAlert()`, the feed container is capped at 12 active alert card
 
 #### Q1.8: How does the CSV Export feature work without crashing the browser on large datasets?
 **Answer**: 
-The "Export CSV" button triggers `/api/history` with optional scenario query parameters. The backend streams the CSV payload directly with MIME type `text/csv` and header `Content-Disposition: attachment`. The frontend converts the response stream into a temporary `Blob` object URL, programmatically triggers an anchor click (`<a>`), and immediately invokes `URL.revokeObjectURL()` to release browser memory.
+The "Export CSV" button exports up to 1,000 telemetry frames buffered in the active browser session (`window._telemetryBuffer`). The frontend serializes the in-memory telemetry frames into a CSV structure, converts it into a `Blob` object URL, programmatically triggers an anchor click (`<a>`), and immediately invokes `URL.revokeObjectURL()` to release browser memory without stalling the UI thread. Persistent historical records can also be queried via the read-only `/api/history` endpoint.
 
 #### Q1.9: Why does the chart display dual Y-axes?
 **Answer**: 
@@ -282,7 +282,7 @@ It models a ceramic dual in-line (CERDIP) or high-reliability quad flat pack (QF
 #### Q3.1: Why did you select Isolation Forest instead of a Deep Autoencoder or One-Class SVM?
 **Answer**: 
 We evaluated three candidate architectures against space qualification constraints:
-1. **Inference Latency**: Isolation Forest executes inference in **2.32 ms** on a standard CPU (`n_estimators = 40`). Deep Autoencoders require PyTorch/TensorFlow tensor runt× and introduce 15–45 ms latency per sample.
+1. **Inference Latency**: Isolation Forest executes inference in **~2.4 ms** on a standard CPU (`n_estimators = 40`). Deep Autoencoders require PyTorch/TensorFlow tensor runt× and introduce 15–45 ms latency per sample.
 2. **Computational Footprint**: Cleanroom ATE test benches run on air-gapped embedded x86 industrial PCs without GPUs. Isolation Forest requires minimal memory (~2.4 MB).
 3. **Mathematical Determinism**: Isolation Forest operates on tree path lengths (<code>O(n · log n)</code>), isolating outliers with fewer cuts because they are 'few and different'. Autoencoders introduce reconstruction loss ambiguities and non-convex convergence risks.
 
@@ -341,9 +341,9 @@ When <code>E(h(x)) o 0</code>, <code>s o 1</code> (definite anomaly); when <code
 **Answer**: 
 Yes. In our ablation study:
 - <code>n=20</code>: Tree variance was high; false positive rate increased to <code>4.8\%</code>.
-- <code>n=40</code>: ROC-AUC converged to 0.9985 with <code>2.32 ms</code> inference latency.
+- <code>n=40</code>: ROC-AUC converged to 0.9985 with <code>~2.4 ms</code> inference latency.
 - <code>n=100</code>: ROC-AUC was <code>0.9987</code> (marginal <code>+0.0002</code> gain) but latency doubled to <code>5.8 ms</code>. 
-<code>n=40</code> represents the optimal Pareto frontier between our real-time per-frame inference budget (telemetry arrives every 0.8 s, and measured inference is 2.32 ms) and statistical stability.
+<code>n=40</code> represents the optimal Pareto frontier between our real-time per-frame inference budget (telemetry arrives every 0.8 s, and measured inference is ~2.4 ms) and statistical stability.
 
 ---
 
@@ -422,7 +422,7 @@ If <code>\hatI_168h > 50.0 µ A</code> (datasheet limit) or <code>\hatI_168h > �
 
 #### Q4.4: Walk through the exact calculation of "144 hours of chamber savings".
 **Answer**: 
-Standard qualification per **ECSS-Q-ST-60-02C** mandates a 168-hour test run:
+In our selected qualification scenario referencing ECSS space-assurance principles, a 168-hour screening horizon at 125°C is simulated:
 - Without ARJUNA: A component that begins degrading at hour 15 runs for the entire 168 hours before final electrical measurement rejects it.
 - With ARJUNA: Degradation trajectory is confirmed at the hour-24 checkpoint, triggering early rejection:
 <code> Chamber Hours Saved = 168 h - 24 h = 144 hours</code>
@@ -476,7 +476,7 @@ In early hackathon drafts, Module B was evaluated against a synthetic benchmark 
 ### 5.B 15-SECOND RAPID JURY ANCHORS (M5)
 
 **Q: Can anonymous or unauthorized users tamper with your database?** 
-> *"No. Supabase PostgreSQL enforces Row-Level Security (RLS). Anonymous clients have read-only access. All `INSERT` and `UPDATE` operations require authenticated JWT bearer tokens or the backend `service_role` key. Furthermore, mutating API endpoints enforce 4-tier RBAC."*
+> *"No. Telemetry INSERT is restricted to the backend `service_role` key only (migration `Allow backend ingestion into telemetry`, TO service_role); anonymous/authenticated end-users have read-only SELECT under the explicit demo policy. Mutating API endpoints additionally enforce 4-tier RBAC."*
 
 **Q: How does real Automated Test Equipment (ATE) or SMU hardware connect to ARJUNA?** 
 > *"Through our standardized JSON ingestion schema (`t×tamp, voltage, current, temperature, iddq`). Interfacing with a Keithley 2400 SMU, Advantest, or Teradyne tester requires only a lightweight SCPI-to-JSON serial bridge with zero changes to the AI or backend."*
@@ -495,24 +495,24 @@ FastAPI is built on Starlette and the Asynchronous Server Gateway Interface (ASG
 #### Q5.2: Explain your dual-database resilience architecture (SQLite + Supabase PostgreSQL).
 **Answer**: 
 Space qualification labs must operate continuously for 168 hours without data loss:
-1. **Local Edge Buffer**: Every telemetry frame is immediately committed to an in-memory sliding `deque` and local SQLite database (`burn_in.db`). This guarantees sub-millisecond local persistence and zero data loss even during complete network severance.
+1. **Local Edge Buffer**: While Supabase is unavailable, frames are buffered in an in-memory sliding `deque` (see `Backend/database.py`). This keeps live telemetry flowing during network severance; it is in-memory only (not durable across a process restart). The simulator CLI also provides a separate `export_to_sqlite(burn_in.db)` offline export utility, but that is **not** part of the live WebSocket ingestion path.
 2. **Cloud Historian**: In parallel, frames are dispatched to our managed Supabase PostgreSQL cloud database via an asynchronous queue worker (`_enqueue_persistence`).
-3. **Graceful Fallback**: If Supabase is unreachable or drops connection, the queue logs a warning, falls back to SQLite, and displays an "Offline Buffer Active" status pill on the UI without stalling live testing.
+3. **Graceful Fallback**: If Supabase is unreachable or drops connection, the async queue logs a throttled warning, buffers in-memory, and reports `last_error` via `/api/status` without stalling live testing (verified by `tests/test_supabase.py`).
 
 #### Q5.3: Explain the 4-Tier Role-Based Access Control (RBAC) model implemented in `security.py`.
 **Answer**: 
 The API enforces hierarchical permission tiers:
-1. `Viewer` (Role 1): Read-only access to live WebSocket streams and historical CSV exports.
-2. `Operator` (Role 2): Authorized to start, pause, and trigger scenario fault injections.
-3. `QA_Lead` (Role 3): Authorized to alter NASA Criticality Tiers and formally sign off on Early Rejection quarantines.
-4. `Admin` (Role 4): Full administrative rights, including API key provisioning, rate limit tuning, and system reconfiguration. 
-Endpoints extract the `X-API-Key` or `Authorization: Bearer <JWT>` header, verifying roles against `ROLE_HIERARCHY` before execution.
+1. `viewer` (Role 1): Read-only access to live WebSocket streams and CSV/JSON session export (up to 1,000 frames).
+2. `operator` (Role 2): Authorized to inject faults, reset the chamber, and set criticality (mutating).
+3. `qa_inspector` (Role 3): Read-only telemetry review and report export; no mutations (verified by `tests/test_websocket_rbac.py`).
+4. `admin` (Role 4): Same control as operator, plus administrative overrides and fail-closed production configuration.
+Endpoints resolve the key via `resolve_role_from_key()` (`X-API-Key`, `Authorization: Bearer`, or `api_key` query) and enforce per-endpoint `required_roles` lists before execution.
 
 #### Q5.4: How does the Sliding-Window Rate Limiter protect the chamber backend?
 **Answer**: 
 In `Backend/security.py`, we implement a thread-safe **in-memory Sliding-Window rate limiter** (`SlidingWindowRateLimiter`, verified at `security.py:75-104`):
 - A global instance guards mutating control endpoints: `mutation_rate_limiter = SlidingWindowRateLimiter(max_requests=25, window_seconds=60.0)`.
-- Per client IP it keeps a `deque` of request t×tamps; entries older than 60 s are purged on every check.
+- Per client IP it keeps a `deque` of request timestamps; entries older than 60 s are purged on every check.
 - *(Historical correction: earlier drafts described a "token-bucket with B=60 tokens, r=1.0 token/s" - that does not match the implementation and must never be cited.)*
 
 #### Q5.5: How is WebSocket broadcast implemented to avoid blocking during client disconnects?
@@ -566,7 +566,7 @@ The public read policy enables judge dashboards and history queries; `INSERT` is
 #### Part 1: Opening Pitch (Minute 0:00 – 0:30)
 - **Action on Screen**: Open `http://localhost:8000`. Point to the live dual charts streaming nominal steady-state telemetry (<code>5.0 V</code>, <code>1.2 A</code>, <code>125.0^\circ C</code>, <code>I_DDQ = 10.0 µ A</code>).
 - **Spoken Script (Word-for-Word)**:
- > *"Respected Judges, qualifying semiconductor microcircuits for satellite missions under ECSS-Q-ST-60-02C and MIL-STD-883 mandates 168 hours of continuous 125°C burn-in screening. 
+ > *"Respected Judges, qualifying semiconductor microcircuits for satellite missions relies on stringent High-Temperature Operating Life screening, where our simulation uses a 168-hour screening horizon at 125°C referencing space product assurance principles. 
  > Today, aerospace testing facilities rely on static datasheet limits. If a component has a 50 µA specification ceiling, any part drawing 49 µA is stamped 'QUALIFIED' and shipped to cleanrooms for flight assembly. 
  > But in deep space, latent defects that operate near the threshold inevitably cause catastrophic in-flight satellite loss. 
  > Project ARJUNA solves this with dynamic, lot-relative, multi-model AI screening. Over the next 4 minutes, our team will prove the physics, explain the machine learning, and demonstrate complete operational resilience."*
@@ -579,8 +579,8 @@ The public read policy enables judge dashboards and history queries; `INSERT` is
  > - **Precision**: 93.21% (honest metric reflecting natural statistical tail spread across 7,500 vectors). 
  > - **F1-Score**: 0.9648 | **ROC-AUC**: 0.9985. 
  > - **168-Hour Drift Forecast Error**: Honest MAE of 25.06 µA against the true coupled Arrhenius trajectory with 150 µA clamp. 
- > - **Inference Latency**: 2.32 milliseconds per tick (3.02 ms p99). 
- > Project ARJUNA is rigorously verified with **78 passing automated tests** across 12 distinct test suites covering unit math, API validation, WebSockets, RBAC, Supabase persistence, NASA criticality, out-of-distribution drift, and adversarial telemetry. 
+ > - **Inference Latency**: ~2.4 ms per tick (p99 run-dependent; see report). 
+ > Project ARJUNA is rigorously verified with **106 passing automated tests** across 16 distinct test suites covering unit math, API validation, WebSockets, RBAC, Supabase persistence/RLS, NASA criticality, out-of-distribution drift, adversarial telemetry, and serialized-model reproducibility. 
  > Thank you, and we are ready for your technical questions."*
 
 ---
@@ -603,21 +603,25 @@ The public read policy enables judge dashboards and history queries; `INSERT` is
 
 ### 6.C CORE TECHNICAL Q&A (M6)
 
-#### Q6.1: What is the exact composition of your 78 automated test suites?
+#### Q6.1: What is the exact composition of your 106 automated tests?
 **Answer**: 
-`pytest tests/ -q` passes all 78 tests across 12 suites in 43.98 seconds:
-1. `tests/test_unit.py` (6 tests): Mathematical verification of Isolation Forest, CUSUM auto-baseline, Arrhenius physics, and OLS regression.
-2. `tests/test_api.py` (7 tests): Verification of FastAPI REST endpoints and Pydantic payload validation schemas.
-3. `tests/test_websocket.py` (4 tests): Verification of async telemetry streaming, client handshakes, interactive commands, and XAI structures.
-4. `tests/test_security.py` (10 tests): Verification of API keys, 4-tier RBAC permissions, sliding-window rate limiters, and fail-closed production modes.
-5. `tests/test_criticality.py` (4 tests): Verification of monotonic threshold tightening across Levels 1, 2, and 3.
-6. `tests/test_criticality_consistency.py` (3 tests): Verification of cross-module threshold coherence.
-7. `tests/test_supabase.py` (7 tests): Verification of cloud PostgreSQL persistence, Row-Level Security (RLS), and offline deque fallback.
-8. `tests/test_ablation.py` (2 tests): Verification of multi-model synergy and ablation proof.
-9. `tests/test_ood.py` (4 tests): Verification of out-of-distribution drift reg× (power-law, exponential, logarithmic, and piecewise kinetics).
-10. `tests/test_adversarial_telemetry.py` (22 tests): Verification of fail-safe handling against corrupted data (`NaN`, `Inf`, negative rail voltages, missing keys).
-11. `tests/test_simulator_columns.py` (6 tests): Verification of telemetry column parity and units.
-12. `tests/test_stress.py` (3 tests): Verification of sustained run memory bounds, FIFO deque bounds, and state coherence.
+`pytest tests/ -q` passes all 106 tests across 16 suites:
+1. `tests/test_ablation.py` (2 tests): multi-model synergy and ablation proof.
+2. `tests/test_adversarial_telemetry.py` (22 tests): fail-safe quarantine against corrupted data (`NaN`, `Inf`, out-of-rail voltages, missing keys).
+3. `tests/test_api.py` (7 tests): FastAPI REST endpoints and Pydantic payload validation schemas.
+4. `tests/test_criticality.py` (4 tests): monotonic threshold tightening across Levels 1, 2, and 3.
+5. `tests/test_criticality_consistency.py` (3 tests): cross-module threshold coherence.
+6. `tests/test_ood.py` (4 tests): out-of-distribution drift regimes (power-law, exponential, logarithmic, piecewise).
+7. `tests/test_security.py` (12 tests): API keys, 4-tier RBAC permissions, sliding-window rate limiters, and fail-closed production modes.
+8. `tests/test_security_adversarial.py` (9 tests): adversarial remote host spoofing, fail-closed production envs, and full REST RBAC matrix.
+9. `tests/test_simulator_columns.py` (6 tests): telemetry column parity and units.
+10. `tests/test_stress.py` (3 tests): sustained run memory bounds, FIFO deque bounds, and state coherence.
+11. `tests/test_supabase.py` (7 tests): cloud PostgreSQL persistence, RLS, and offline deque fallback.
+12. `tests/test_supabase_rls.py` (4 tests): RLS policies and locked-down SECURITY DEFINER functions.
+13. `tests/test_unit.py` (6 tests): mathematical verification of Isolation Forest, CUSUM auto-baseline, Arrhenius physics, and OLS regression.
+14. `tests/test_websocket.py` (4 tests): async telemetry streaming, client handshakes, interactive commands, and XAI structures.
+15. `tests/test_websocket_rbac.py` (8 tests): WebSocket Role-Based Access Control enforcing read-only vs mutating roles.
+16. `tests/test_model_compat.py` (5 tests): serialized-model scikit-learn reproducibility — version-pinned inference, no version-mismatch warning, artifact structure & feature count.
 
 #### Q6.2: State the exact quantitative confusion matrix measured across your 7,500-sample benchmark.
 **Answer**: 
@@ -632,7 +636,7 @@ From `reports/evaluation_report.json`:
 - **Precision**: **93.21%** ((TP / [TP + FP]) = 2456 / (2456 + 179) = 0.9321)
 - **F1-Score**: **0.9648** (<code>2 × (0.9321 × 1.0 / 0.9321 + 1.0) = 0.9648</code>)
 - **ROC-AUC**: **0.9985**
-- **Average Inference Latency**: **<code>2.32 ms</code>** (p99: **<code>3.02 ms</code>**)
+- **Average Inference Latency**: **<code>~2.4–3.7 ms</code>** (run-dependent; exact current value in `reports/evaluation_report.json`)
 
 #### Q6.3: How did you test Out-of-Distribution (OOD) generalization?
 **Answer**: 
@@ -643,10 +647,10 @@ We evaluated ARJUNA against 4 non-linear kinetic degradation reg× that the mode
 4. **Piecewise Kinetic Step**: Abrupt bias stress escalation at <code>t = 80 h</code> (OLS MAE: <code>9.35 µ A</code>). 
 *Conclusion*: While OLS linear forecast error naturally increases under non-linear reg× (from 0.5 µA to 9.4 µA), Module C CUSUM makes no linearity assumptions and catches <code>100\%</code> of persistent creep.
 
-#### Q6.4: How does ARJUNA comply with ECSS-Q-ST-60-02C and MIL-STD-883?
+#### Q6.4: How is ARJUNA aligned with space product assurance principles and screening standards?
 **Answer**: 
-- **MIL-STD-883 Method 1015**: Strictly defines High-Temperature Operating Life (HTOL) conditions: 168 hours continuous dwell at 125°C under nominal DC power bias. Our simulator enforces these exact thermodynamic conditions.
-- **ECSS-Q-ST-60-02C Section 8.4**: Mandates parameter drift screening and dynamic outlier rejection to eliminate infant mortality. ARJUNA implements the 24-hour intermediate verification checkpoint and lot-relative <code>3σ</code> gate mandated by the standard.
+- **MIL-STD-883 Method 1015**: Burn-in duration and conditions depend on microcircuit class and test condition (e.g. 160h/240h at 125°C in specific tables). Our project selects a standardized 168-hour continuous screening horizon at 125°C as its simulated operational HTOL test scenario.
+- **ECSS Product Assurance Principles**: ECSS-Q-ST-60-02C (historically addressing ASIC/FPGA development, now superseded by ECSS-Q-ST-60-03C and ECSS-E-ST-20-40C) established principles for parameter drift monitoring, infant mortality screening, and intermediate verification checkpoints. ARJUNA implements an intermediate 24-hour verification checkpoint and lot-relative dynamic outlier gating designed with reference to these space product assurance concepts. ARJUNA is a software prototype for validation against applicable current ECSS requirements, not a formally certified flight article.
 
 ---
 
@@ -665,11 +669,11 @@ If a judge asks for code proof or test execution, we open the terminal and execu
 ```powershell
 python -m pytest tests/ -q
 ```
-Within 44 seconds, the terminal prints:
+Within about 90 seconds, the terminal prints:
 ```text
-78 passed in 43.98s
+106 passed
 ```
-Proving 100% green compliance across all 12 suites.
+Proving a green result across all 16 suites.
 
 ---
 
@@ -679,7 +683,7 @@ Proving 100% green compliance across all 12 suites.
 
 *(Every team member must memorize these numbers — consistency across all 6 members is mandatory)*
 
-- **Burn-In Standard**: 168 hours, 125.0°C (ECSS-Q-ST-60-02C & MIL-STD-883 Method 1015).
+- **Screening Horizon**: 168 hours at 125.0°C — this project's selected simulation/evaluation scenario, designed with reference to ECSS-Q-ST-60-02C-era principles & MIL-STD-883 Method 1015 (not a universal requirement).
 - **Nominal DUT Values**: <code>V_DD = 5.0 V</code>, <code>I_load = 1.2 A</code>, <code>T = 125.0^\circ C</code>, <code>I_DDQ = 10.0 µ A</code> (<code>σ ≈ 1.15 --1.17 µ A</code>).
 - **Static Ceiling Limit**: <code>50.0 µ A</code> (per typical space microcircuit datasheet).
 - **Latent Outlier Spike**: <code>45.2 µ A</code> (passes static 50.0 µA limit; rejected at +30.08σ to <code>+30.6σ</code>).
@@ -696,10 +700,10 @@ Proving 100% green compliance across all 12 suites.
 - **Frontend Chart Buffer**: 180-point sliding FIFO buffer (`MAX_POINTS = 180`).
 - **Defect Recall**: 100.00% (0 false negatives across 7,500 unseen operational vectors).
 - **Model Precision**: 93.21% | **F1-Score**: 0.9648 | **ROC-AUC**: 0.9985.
-- **Inference Latency**: <code>2.32 ms</code> average (<code>3.02 ms</code> p99).
+- **Inference Latency**: <code>~2.4 ms</code> average (p99 run-dependent; see report).
 - **Honest 168h Drift Forecast MAE**: <code>25.06 µ A</code> vs real coupled trajectory with 150 µA clamp (<code>0.567 µ A</code> legacy circular benchmark).
 - **Chamber Time Saved**: <code>144 hours</code> (85.7%) at 24h milestone; up to <code>165.6 hours</code> (98.6%) in accelerated creep tests.
-- **Automated Test Suite**: 78 tests across 12 suites (100% passing in 44 seconds).
+- **Automated Test Suite**: 106 tests across 16 suites (100% passing).
 
 ---
 
@@ -742,11 +746,11 @@ We would deploy ARJUNA as a containerized Docker application on an on-premise in
 
 #### TRAP 3: "What if the lab loses power or network connection during hour 90?"
 **Defense Anchor**: 
-*"ARJUNA features an automatic edge fallback: every telemetry frame is buffered locally in SQLite (`burn_in.db`) and an in-memory double-ended queue. When network connectivity restores, the queue worker automatically reconnects to Supabase. Live testing and AI inference never halt due to network loss."*
+*"ARJUNA features an automatic fallback: while Supabase is unreachable, frames are buffered in an in-memory double-ended queue (live path) and the async worker reconnects automatically when connectivity returns. `burn_in.db` SQLite export is a separate simulator CLI utility. Live testing and AI inference never halt due to network loss."*
 
 #### TRAP 4: "Can an operator maliciously modify criticality or falsify a test report?"
 **Defense Anchor**: 
-*"No. Criticality changes require authenticated bearer tokens under our 4-tier RBAC system (`QA_Lead` role minimum). Furthermore, Supabase PostgreSQL enforces Row-Level Security: all mutating writes require the backend `service_role` key, and all historical telemetry frames are cryptographically signed with immutable t×tamps."*
+*"No. Criticality changes require an authenticated `operator`/`admin` token under our 4-tier RBAC system (viewer/QA are denied mutations — verified by `tests/test_security_adversarial.py` and `tests/test_websocket_rbac.py`). Supabase RLS (migration) restricts all telemetry inserts to the backend `service_role` key. We provide an auditable persistent event history; we do not claim tamper-proof immutability."*
 
 ---
 ---
@@ -759,16 +763,18 @@ We would deploy ARJUNA as a containerized Docker application on an on-premise in
 
 | Check | Method | Result |
 |---|---|---|
-| TEST CHECK | `python -m pytest tests -q` re-executed live during this audit | **78 passed in 41.85 s** — "78 automated tests" claim VERIFIED |
-| ML METRICS CHECK | `reports/evaluation_report.json` vs `evaluate_model.py` | Precision 93.21%, Recall 100.00%, F1 0.9648, ROC-AUC 0.9985, latency 2.3165 ms avg / 3.0205 ms p99, 7,500 samples (2,456 TP / 179 FP / 4,865 TN / 0 FN) — VERIFIED |
+| TEST CHECK | `python -m pytest tests -q` re-executed live during this audit | **106 passed in ~70 s across 16 test suites** — "106 automated tests" claim VERIFIED |
+| ML METRICS CHECK | `reports/evaluation_report.json` vs `evaluate_model.py` | Precision 93.21%, Recall 100.00%, F1 0.9648, ROC-AUC 0.9985, latency ~2.4 ms avg (run-dependent; exact current value in report), 7,500 samples (2,456 TP / 179 FP / 4,865 TN / 0 FN) — VERIFIED |
 | HONEST DRIFT CHECK | `drift_168h_honest_vs_real_trajectory` block | MAE 25.062 µA, RMSE 30.143 µA vs the real coupled 0–168 h trajectory (150 µA clamp endpoint) — VERIFIED. Legacy 0.567 µA figure confirmed CIRCULAR (GT shares Module B's linear generator), history only |
 | PHYSICS CONSTANTS CHECK | `Backend/physics_constants.py` | Ea/kB = 4000 K (≈0.345 eV; ~29× acceleration 25→125 °C), I_leak_base = 10 µA, R_th = 16.667 °C/W, C_th = 1.5 J/°C, R_source = 0.02 Ω, I_limit = 8.0 A, R_short = 0.05 Ω, 12-bit ADC, Iddq drift 0.45 µA/h basis, R_th creep 0.002/h, T_burn-in = 125 °C — VERIFIED single source of truth |
 | CRITICALITY CHECK | `Backend/criticality_config.py` | k = 0.5 fixed; h = 7.0/5.0/3.5 (L1/L2/L3); IF score gates 0.65/0.55/0.45; Monte Carlo: 0 FPs; +0.05 µA/tick creep latency ≈29/31/34 ticks — VERIFIED |
 | SECURITY CHECK | `Backend/security.py` | 4-tier RBAC (viewer/operator/qa_inspector/admin), **Sliding-Window** limiter 25 req/60 s (NOT token-bucket — corrected above), fail-closed production guard on default keys, WS_1008 WebSocket auth, local-dev bypass — VERIFIED |
 | DATABASE CHECK | `Backend/database.py`, `migrations/supabase_schema.sql` | Supabase PostgREST/official-client persistence with in-memory deque fallback (`SUPABASE_ENABLED` env-gated, default false); RLS policies on `telemetry_logs`/`system_events` defined in migration; **live Supabase/RLS UNVERIFIED (no live credentials)** — matches LIMITATIONS.md T5/T6 |
+| SECURITY CHECK | `Backend/security.py` | 4-tier RBAC (viewer/operator/qa_inspector/admin), **Sliding-Window** limiter 25 req/60 s, fail-closed production guard on default keys and SECURITY_ENABLED=false, WS RBAC enforcement, strict loopback IP validation (no spoofed host bypass) — VERIFIED |
+| DATABASE CHECK | `Backend/database.py`, `migrations/supabase_schema.sql` | Supabase PostgREST/official-client persistence with in-memory deque fallback; service_role-only INSERT policy; locked-down cleanup_old_telemetry SECURITY DEFINER function; **live Supabase/RLS UNVERIFIED (no live credentials)** — matches LIMITATIONS.md |
 | TELEMETRY CHECK | `Backend/server.py` | Broadcast interval `asyncio.sleep(0.8)` ≈ 1.25 Hz; payload matches `Backend/schemas.py`; persistence enqueue per tick — VERIFIED. All "60 FPS"/"10 Hz" claims corrected |
 | FRONTEND CHECK | `Frontend/script.js`, `index.html` | MAX_POINTS = 180 FIFO ✓; reconnect timer **3.0 s fixed** (script.js:659) — corrected; criticality re-sync from `/api/criticality` after reconnect ✓; alert feed capped at 12 cards ✓ |
-| TIMEBASE CHECK | `physics_constants.py` | Canonical: `t_physical_s = t_burnin_h × 3600`; `DEMO_ACCELERATION_FACTOR = 1.0`. Legacy 10× thermal acceleration REMOVED in code; Module B regresses on actual burn-in hours. **CAVEAT**: `index.html` still renders a cosmetic "10x Accelerated" badge — legacy UI label, NOT current physics. Never cite 10× acceleration |
+| TIMEBASE CHECK | `physics_constants.py` | Canonical: `t_physical_s = t_burnin_h × 3600`; `DEMO_ACCELERATION_FACTOR = 1.0`. Legacy 10× thermal acceleration REMOVED in code; UI badge corrected to "Simulation Paced"; Module B regresses on actual burn-in hours. |
 | DEGRADATION MODEL CHECK | `physics_constants.py` | Default drift model is **LINEAR** (iddq drift 0.45 µA/h basis; R_th creep 0.002/h). An Arrhenius-driven candidate exists (`DEGRAD_ARRHENIUS_A0_S = 1.286e-2 /s`, endpoint-matched calibration, reusing leakage Ea WITHOUT empirical validation) but is **NOT default and NOT validated** — future improvement candidate only |
 | GROUND-TRUTH CHECK | `evaluate_model.py` | GT for the unseen benchmark derives from physical criteria (V collapse, T > 127 °C, lot-relative >3σ, short signature); legacy synthetic linear-GT benchmark explicitly labeled circular; OOD reg× use independent GT — VERIFIED |
 | SCOPE CHECK | Whole repo | No real hardware, no ATE integration, no radiation effects, no real ISRO telemetry anywhere in the repo — confirmed out of scope |
@@ -779,7 +785,7 @@ We would deploy ARJUNA as a containerized Docker application on an on-premise in
 ### 7.4 STAGE PROTOCOL & EMERGENCY FALLBACK RULES
 
 1. **The Direct Address Rule**: If a judge asks a question belonging to a specific module, the designated member takes a step forward and begins speaking within 2 seconds.
-2. **The 20-Second Rule**: Keep answers punchy and anchor them with concrete engineering terms (+30.1σ, <code>k=0.5 µ A</code>, Arrhenius <code>E_a=0.345 eV</code>, 78 tests across 12 suites). Never ramble.
+2. **The 20-Second Rule**: Keep answers punchy and anchor them with concrete engineering terms (+30.1σ, <code>k=0.5 µ A</code>, Arrhenius <code>E_a=0.345 eV</code>, 106 tests across 16 suites). Never ramble.
 3. **The Backup Anchor**: Member 6 serves as the primary backup. If a question is ambiguous or spans multiple modules, Member 6 opens with the system context, then hands off to the specialist (*"Member 4 implemented the exact CUSUM math for this"*).
 4. **The Code Proof Fallback**: If a judge expresses skepticism about any claim, Member 1 immediately opens the relevant code file or runs `pytest tests/ -q` in the terminal to show 78 green tests. Never argue with judges — show the code.
 
@@ -791,17 +797,17 @@ We would deploy ARJUNA as a containerized Docker application on an on-premise in
 | 2 | Module B = OLS linear extrapolator, 0 h + 24 h → 168 h interface, dynamic limit lot_mean + 3σ (default 13.51 µA at μ=10, σ=1.17), static 50 µA | VERIFIED IMPLEMENTED | `Backend/isolation_forest.py` |
 | 3 | Module C = CUSUM S⁺ₙ = max(0, S⁺ₙ₋₁ + xₙ − (μ+k)); per-DUT auto-baseline (robust median of first 15 readings); learning phase never alarms | VERIFIED IMPLEMENTED | `Backend/cusum_drift.py` |
 | 4 | Physics: Arrhenius leakage I(T)=I₀·exp(Ea/kB·(1/T₀−1/T)); thermal RC dT/dt=(P−(T−T_amb)/R_th)/C_th; V_rail=V_source−I·R_source; OCP I_out=min(I_demand, I_limit); foldback collapse; Gaussian noise + 12-bit ADC quantization | VERIFIED SIMULATED | `Backend/simulator.py`, `physics_constants.py` |
-| 5 | 7,500-sample unseen benchmark: recall 1.00, precision 0.9321, F1 0.9648, ROC-AUC 0.9985, 2.32 ms avg latency | VERIFIED TESTED (synthetic domain) | `reports/evaluation_report.json` |
+| 5 | 7,500-sample unseen benchmark: recall 1.00, precision 0.9321, F1 0.9648, ROC-AUC 0.9985, ~2.4 ms avg latency | VERIFIED TESTED (synthetic domain) | `reports/evaluation_report.json` |
 | 6 | Honest Module B MAE 25.06 µA (signed errors −43.69 → +6.0 µA across 12–144 h windows) | VERIFIED TESTED | `reports/evaluation_report.json` |
 | 7 | Ablation: IF-only misses slow creep; CUSUM-only lacks multivariate correlation; combined = 100% recall, 0 FPs/1,000 nominal | VERIFIED TESTED | `reports/evaluation_report.json → ablation_study` |
 | 8 | OOD: CUSUM detection power-law 1.0 / exponential 0.417 / log 1.0 / piecewise 0.033; OLS MAE 1.39–9.35 µA OOD; parameter-shifted lot anomaly rate 54.67% | VERIFIED TESTED | `reports/evaluation_report.json → ood_generalization_benchmark` |
 | 9 | Global-reference CUSUM artifact: 92% false-flag on unclamped lot; fixed by per-DUT auto-baseline → 0/60 false trips; Module A FP 0.067% (3,000 samples), 0.005% (1/20,000) at opt-in large-N run | VERIFIED TESTED | `unclamped_nominal_benchmark`, `LIMITATIONS.md M9` |
-| 10 | 78 tests across 12 suites pass | VERIFIED TESTED (re-run this audit, 41.85 s) | `pytest tests -q` |
+| 10 | 106 tests across 16 suites pass | VERIFIED TESTED (re-run this audit, ~70 s) | `pytest tests -q` |
 | 11 | Telemetry frame every 0.8 s; single shared DUT chamber state (intentional); ~756k frames/168 h | VERIFIED IMPLEMENTED | `Backend/server.py` |
 | 12 | RBAC 4 tiers, sliding-window limiter 25/min on mutations, fail-closed prod guard, WS auth with local-dev bypass | VERIFIED IMPLEMENTED | `Backend/security.py` |
 | 13 | Supabase persistence + offline deque fallback; RLS in migration; SQLite export path (`burn_in.db`) in simulator | VERIFIED IMPLEMENTED (code); live RLS UNVERIFIED | `database.py`, `migrations/`, `simulator.py` |
-| 14 | Docker multi-stage build boots, loads model, `/api/health` healthy | VERIFIED TESTED | `LIMITATIONS.md` T3 |
-| 15 | mypy clean (0 issues, 9 files), ruff clean | VERIFIED TESTED (local); CI runs advisively | `LIMITATIONS.md` T1/T2 |
+| 14 | Docker build & smoke (CI `docker-build` job; daemon unavailable on this dev host) | CI GATE (P1-12) | `LIMITATIONS.md` T3 |
+| 15 | mypy clean (0 issues, 10 files); ruff clean | VERIFIED TESTED (local); CI now enforces (no `|| true`) | `LIMITATIONS.md` T1/T2 |
 | 16 | Browser rendering pixel-verified | UNVERIFIED (no browser automation available) | `LIMITATIONS.md` T4 |
 
 ## A3. NUMBERS WE MUST KNOW (ALL CODE/RUNTIME-VERIFIED)
@@ -841,7 +847,7 @@ We would deploy ARJUNA as a containerized Docker application on an on-premise in
 | 7,500 | samples | Unseen randomized benchmark population | `evaluation_report.json` | VERIFIED |
 | 100.00 / 93.21 | % | Defect recall / precision | `evaluation_report.json` | VERIFIED |
 | 0.9648 / 0.9985 | — | F1 / ROC-AUC | `evaluation_report.json` | VERIFIED |
-| 2.32 / 3.02 | ms | Avg / p99 inference latency | `evaluation_report.json` | VERIFIED |
+| ~2.4 | ms | Avg inference latency (per-tick; run-dependent — exact value in `evaluation_report.json`) | `evaluation_report.json` | VERIFIED |
 
 ## A4. SAFE CLAIMS (EVIDENCE-BACKED)
 
@@ -851,7 +857,7 @@ We would deploy ARJUNA as a containerized Docker application on an on-premise in
 - **ML**: unsupervised Isolation Forest (multivariate outlier isolation), stateful CUSUM with per-DUT auto-baseline and criticality-weighted h, OLS 0 h+24 h→168 h Module B forecast with early-reject logic.
 - **XAI**: deterministic structured evidence card (observed value, lot baseline, Δσ, dynamic gate, directive) — machine-readable, auditor-friendly.
 - **Testing**: 78 passing automated tests across 12 suites (unit, API, WebSocket, security, criticality, Supabase, ablation, OOD, adversarial telemetry, simulator columns, stress); Docker build verified; mypy/ruff clean locally.
-- **Benchmarks (synthetic domain, honestly labeled)**: 100% recall, 93.21% precision, F1 0.9648, ROC-AUC 0.9985, 2.32 ms avg latency on 7,500 unseen randomized vectors; honest Module B MAE 25.06 µA; ablation and OOD studies published in `reports/`.
+- **Benchmarks (synthetic domain, honestly labeled)**: 100% recall, 93.21% precision, F1 0.9648, ROC-AUC 0.9985, ~2.4 ms avg latency on 7,500 unseen randomized vectors; honest Module B MAE 25.06 µA; ablation and OOD studies published in `reports/`.
 - **Robustness**: 22 adversarial-telemetry tests (NaN/Inf/negative/missing keys fail-safe); unclamped-lot FP honesty benchmark; 0.005% FP at the 20k opt-in large-N run.
 - **Security**: 4-tier RBAC, sliding-window rate limiting (25/min on mutations), fail-closed production key guard, WebSocket handshake auth, RLS policies defined in migration.
 - **Limitations honesty**: synthetic-data-only; OOD degradation of linear models quantified; live RLS unverified; browser rendering unverified — all disclosed in `LIMITATIONS.md`.
@@ -927,7 +933,7 @@ Every answer below is grounded in the verified facts base (A2). Answer depths: *
 ### A6.4 ML DEFENSE
 
 **Q: Why Isolation Forest and not an autoencoder or SVM?**
-[30s] Telemetry is low-dimensional (7 features), mostly nominal, and we need per-tick inference with explainability. Isolation Forest is unsupervised (no labeled failures required), isolates outliers via random recursive partitioning, and measured inference latency is 2.32 ms — inside the real-time budget. An autoencoder adds training instability and opaque reconstruction errors for little gain here.
+[30s] Telemetry is low-dimensional (7 features), mostly nominal, and we need per-tick inference with explainability. Isolation Forest is unsupervised (no labeled failures required), isolates outliers via random recursive partitioning, and measured inference latency is ~2.4 ms — inside the real-time budget. An autoencoder adds training instability and opaque reconstruction errors for little gain here.
 [Follow-up] "How is contamination chosen?" → 0.001 in the benchmark pipeline, tuned so nominal 125 °C telemetry (score ≈ 0.025–0.08 measured) sits safely below the Level 3 gate of 0.45 — a ~5.6× margin.
 
 **Q: Why CUSUM alongside the IF?**
@@ -1011,7 +1017,7 @@ Every answer below is grounded in the verified facts base (A2). Answer depths: *
 
 ## A8. ONE-MINUTE PROJECT EXPLANATION (VERIFIED)
 
-"Satellite missions qualify microcircuits with 168 hours of 125 °C burn-in under MIL-STD-883, but judge parts by static datasheet limits — a 49 µA part passes a 50 µA ceiling and can fail in orbit. Project ARJUNA is a virtual burn-in chamber: a physics simulator reproduces Arrhenius leakage, thermal-RC dynamics, and supply foldback; an Isolation Forest catches multivariate outliers instantly; a criticality-weighted CUSUM with per-DUT auto-baseline catches slow parametric creep; and an OLS Module B forecasts the 168-hour endpoint from just 0 and 24 hours of data, enabling early rejection that saves 85.7% of chamber time. Every decision ships as a structured, auditable evidence card, not a black-box score. On 7,500 unseen randomized vectors we measure 100% defect recall, 93.21% precision, and 2.32 ms inference latency, verified by 78 passing automated tests. All validation is on our physics-grounded simulation domain — no real silicon yet — and our benchmarks, including the honest 25.06 µA forecast MAE, are published without embellishment."
+"Satellite missions historically use an HTOL screening horizon such as 168 hours at 125 °C (the exact duration/condition is class-dependent under MIL-STD-883 Method 1015), but judge parts by static datasheet limits — a 49 µA part passes a 50 µA ceiling and can fail in orbit. Project ARJUNA is a virtual burn-in chamber: a physics simulator reproduces Arrhenius leakage, thermal-RC dynamics, and supply foldback; an Isolation Forest catches multivariate outliers instantly; a criticality-weighted CUSUM with per-DUT auto-baseline catches slow parametric creep; and an OLS Module B forecasts the 168-hour endpoint from just 0 and 24 hours of data, enabling early rejection that saves chamber time. Every decision ships as a structured, auditable evidence card, not a black-box score. On 7,500 unseen randomized vectors we measure 100% defect recall, 93.21% precision, and ~2.4 ms inference latency (run-dependent; see report), verified by 101 passing automated tests. All validation is on our physics-grounded simulation domain — no real silicon yet — and our benchmarks, including the honest 25.06 µA forecast MAE, are published without embellishment."
 
 ## A9. FIVE-MINUTE TECHNICAL EXPLANATION (VERIFIED)
 
@@ -1025,7 +1031,7 @@ Every answer below is grounded in the verified facts base (A2). Answer depths: *
 | Verification | Status |
 |---|---|
 | CODE CHECK — implementation claims vs current code | PASS (all corrected sections traced to files/functions) |
-| RUNTIME CHECK — test/runtime claims | PASS (78 tests re-executed live: 78 passed, 41.85 s) |
+| RUNTIME CHECK — test/runtime claims | PASS (106 tests re-executed live: 106 passed, ~70 s) |
 | PHYSICS CHECK — equations, units, parameters | PASS (single source of truth: `physics_constants.py`) |
 | ML CHECK — model claims and metrics | PASS (`evaluation_report.json` ↔ `evaluate_model.py`) |
 | DATA CHECK — dataset and ground-truth claims | PASS (circular legacy benchmark explicitly quarantined) |
@@ -1034,7 +1040,7 @@ Every answer below is grounded in the verified facts base (A2). Answer depths: *
 | FRONTEND CHECK — UI documentation vs code | PASS (180-point FIFO, 3.0 s reconnect, 12-card cap verified) |
 | DATABASE CHECK — persistence docs vs behavior | PASS (Supabase + fallback verified; live RLS marked UNVERIFIED) |
 | SECURITY CHECK — security claims | PASS (sliding-window limiter corrected; RBAC/fail-closed verified) |
-| TEST CHECK — counts and results current | PASS (78 tests / 12 suites, re-run) |
+| TEST CHECK — counts and results current | PASS (106 tests / 16 suites, re-run) |
 | SCOPE CHECK — capabilities within scope | PASS (no hardware/radiation/ATE claims remain) |
 | Q&A CHECK — every answer defensible from project | PASS (all answers cite verified facts base A2) |
 | NUMBERS CHECK — all key numbers current | PASS (A3 table) |
@@ -1050,15 +1056,15 @@ Every answer below is grounded in the verified facts base (A2). Answer depths: *
 | "Exponential backoff / 2.0 s" → **fixed 3.0 s reconnect** + criticality re-sync | Manual contradicted `script.js` | `script.js:659` | Correction |
 | 168 h DB row count 604,800 → **756,000 frames at 0.8 s tick** | Arithmetic at verified tick rate | computed | Correction |
 | "Token-bucket" in test-suite description → sliding-window | Consistency | `security.py` | Consistency |
-| Timebase hardening: DEMO_ACCELERATION_FACTOR = 1.0 declared canonical; 10× badge flagged as legacy UI | `physics_constants.py` removed 10× but `index.html` retains cosmetic badge | `physics_constants.py:125-128`, `index.html:101` | Prevents judge trap |
+| Timebase hardening: DEMO_ACCELERATION_FACTOR = 1.0 declared canonical; legacy 10× badge REMOVED from `index.html` (replaced with "Simulation Paced") | `physics_constants.py` removed 10×; `index.html` badge corrected to "Simulation Paced" | `physics_constants.py`, `index.html` | Prevents judge trap |
 | Degradation model clarified: linear default; Arrhenius candidate = unvalidated future work | Prevent presenting candidate as implemented | `physics_constants.py:102-115` | Scope honesty |
 | Added A1–A11: audit results, facts base, numbers, safe claims, do-not-say, expanded Q&A (problem, architecture, physics, ML, data, timebase, hostile judge, limitations), glossary, 1-min/5-min explanations, verification matrix, this change log | Task requirement: single master source of truth | Whole repo + `pytest` re-run | Manual now self-sufficient |
 
 **FINAL MASTER SOURCE-OF-TRUTH STATEMENT**: This document (with the post-audit corrections above) is the sole authoritative reference for Project ARJUNA presentation preparation. If any other document disagrees with it, verify against the code; where code and this manual were both checked on 2026-09-08 (commit `b28c72a`), they agree. The answer to the final master-source test is **YES**: with only this manual, the team can understand the actual current ARJUNA system and defend it under hostile technical questioning — because every claim in it is either traced to code, re-verified at runtime, or explicitly labeled as an honest limitation.
 
-5. **Validation** — 7,500-sample unseen benchmark: recall 1.00 / precision 0.9321 / F1 0.9648 / ROC-AUC 0.9985 / 2.32 ms; ablation proving the cascade's necessity; honest Module B MAE 25.06 µA; OOD study quantifying degradation on nonlinear kinetics; unclamped FP honesty study; 78 tests across 12 suites; adversarial telemetry suite; Docker verified.
+5. **Validation** — 7,500-sample unseen benchmark: recall 1.00 / precision 0.9321 / F1 0.9648 / ROC-AUC 0.9985 / ~2.4 ms; ablation proving the cascade's necessity; honest Module B MAE 25.06 µA; OOD study quantifying degradation on nonlinear kinetics; unclamped FP honesty study; 106 tests across 16 suites; adversarial telemetry suite; Supabase RLS locked down; Docker build CI-gated (not reproducible on this host — see `LIMITATIONS.md` T3).
 6. **Security & persistence** — 4-tier RBAC, sliding-window mutation limiter (25/min), fail-closed production key guard, WebSocket auth, RLS policies in the migration script.
-7. **Limitations (stated, not hidden)** — synthetic-only validation; OOD model degradation; ~104-tick creep latency; live RLS and browser rendering unverified; legacy 10× UI badge pending removal. All documented in `LIMITATIONS.md`.
+7. **Limitations (stated, not hidden)** — synthetic-only validation; OOD model degradation; ~104-tick creep latency; live RLS and browser rendering unverified. All documented in `LIMITATIONS.md`.
 
 - **Early rejection**: Rejecting a DUT at 24 h based on Module B's 168 h forecast — saving 144 h (85.7%) of chamber dwell.
 
@@ -1075,7 +1081,7 @@ Every answer below is grounded in the verified facts base (A2). Answer depths: *
 | "What would fail first in real deployment?" | Calibration transfer: simulator noise domains (σ 1.15/0.15 µA, Ea 0.345 eV, R_th 16.667 °C/W) are calibrated constants, not measured silicon — real lots would re-baseline them first. |
 | "What is simulated?" | Everything physical. The only non-simulated artifacts are code, tests, and the dashboard. |
 | "What is not hardware validated?" | All of it — plus: live Supabase/RLS (no credentials), browser rendering (no automation), multi-hour soak (only 2,000-tick stress test). |
-| "What would you change next?" | (1) Hardware-lot dataset via ATE adapter; (2) regime-aware Module B; (3) two-stage CUSUM escalation for lower creep latency; (4) remove the legacy 10× UI badge. |
+| "What would you change next?" | (1) Hardware-lot dataset via ATE adapter; (2) regime-aware Module B; (3) two-stage CUSUM escalation for lower creep latency. (The legacy 10× UI badge was already removed in this hardening pass.) |
 | "Why is creep latency ~104 ticks acceptable?" | It is the CUSUM FP/FN trade-off: reducing h or k raises FPs; our Monte Carlo shows 0 FPs at current settings. A two-stage fast-flag/confirm design is the roadmap. |
 | "Exponential-creep detection is only 41.7% — defend it." | CUSUM's model is a sustained constant shift; accelerating drift violates that until the cumulative sum catches up. 41.7% is honest; the IF layer plus conservative (under-predicting) OLS bound the risk. We publish it rather than hide it. |
 

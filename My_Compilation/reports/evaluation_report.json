@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-09-07T18:27:32Z",
-  "standard": "ECSS-Q-ST-60-02C & MIL-STD-883",
+  "timestamp": "2026-09-09T13:19:05Z",
+  "standard": "Designed with reference to ECSS-Q-ST-60-02C principles & MIL-STD-883 screening horizon",
   "unseen_fault_benchmark": {
     "total_samples": 7500,
     "true_positives": 2456,
@@ -13,8 +13,8 @@
     "roc_auc": 0.9985,
     "false_negative_rate": 0.0,
     "false_positive_rate": 0.03549,
-    "avg_inference_latency_ms": 2.3165,
-    "p99_inference_latency_ms": 3.0205,
+    "avg_inference_latency_ms": 3.6561,
+    "p99_inference_latency_ms": 8.0938,
     "segment_metrics": {
       "nominal_false_positive_rate": 0.0328,
       "instantaneous_outlier_recall": 1.0,

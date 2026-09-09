@@ -1,0 +1,148 @@
+{
+  "true_endpoint": 150.0,
+  "clamp_rows": 23,
+  "old": {
+    "12": {
+      "fc": 106.31,
+      "ae": 43.69,
+      "signed_err": -43.69,
+      "method": "baseline",
+      "status": "STABLE",
+      "invalid": 0,
+      "explosive": 0,
+      "fallback": 0
+    },
+    "24": {
+      "fc": 105.9,
+      "ae": 44.1,
+      "signed_err": -44.1,
+      "method": "baseline",
+      "status": "STABLE",
+      "invalid": 0,
+      "explosive": 0,
+      "fallback": 0
+    },
+    "48": {
+      "fc": 114.05,
+      "ae": 35.95,
+      "signed_err": -35.95,
+      "method": "baseline",
+      "status": "STABLE",
+      "invalid": 0,
+      "explosive": 0,
+      "fallback": 0
+    },
+    "72": {
+      "fc": 124.08,
+      "ae": 25.92,
+      "signed_err": -25.92,
+      "method": "baseline",
+      "status": "STABLE",
+      "invalid": 0,
+      "explosive": 0,
+      "fallback": 0
+    },
+    "96": {
+      "fc": 134.34,
+      "ae": 15.66,
+      "signed_err": -15.66,
+      "method": "baseline",
+      "status": "STABLE",
+      "invalid": 0,
+      "explosive": 0,
+      "fallback": 0
+    },
+    "120": {
+      "fc": 145.02,
+      "ae": 4.98,
+      "signed_err": -4.98,
+      "method": "baseline",
+      "status": "STABLE",
+      "invalid": 0,
+      "explosive": 0,
+      "fallback": 0
+    },
+    "144": {
+      "fc": 156.0,
+      "ae": 6.0,
+      "signed_err": 6.0,
+      "method": "baseline",
+      "status": "STABLE",
+      "invalid": 0,
+      "explosive": 0,
+      "fallback": 0
+    }
+  },
+  "new": {
+    "12": {
+      "fc": 106.31,
+      "ae": 43.69,
+      "signed_err": -43.69,
+      "method": "linear",
+      "status": "STABLE_FORECAST",
+      "invalid": 0,
+      "explosive": 0,
+      "fallback": 0
+    },
+    "24": {
+      "fc": 126.74,
+      "ae": 23.26,
+      "signed_err": -23.26,
+      "method": "physics",
+      "status": "NONLINEAR_REGIME",
+      "invalid": 0,
+      "explosive": 0,
+      "fallback": 0
+    },
+    "48": {
+      "fc": 137.35,
+      "ae": 12.65,
+      "signed_err": -12.65,
+      "method": "physics",
+      "status": "NONLINEAR_REGIME",
+      "invalid": 0,
+      "explosive": 0,
+      "fallback": 0
+    },
+    "72": {
+      "fc": 150.0,
+      "ae": 0.0,
+      "signed_err": 0.0,
+      "method": "physics",
+      "status": "NONLINEAR_REGIME",
+      "invalid": 0,
+      "explosive": 0,
+      "fallback": 0
+    },
+    "96": {
+      "fc": 150.0,
+      "ae": 0.0,
+      "signed_err": 0.0,
+      "method": "physics",
+      "status": "NONLINEAR_REGIME",
+      "invalid": 0,
+      "explosive": 0,
+      "fallback": 0
+    },
+    "120": {
+      "fc": 150.0,
+      "ae": 0.0,
+      "signed_err": 0.0,
+      "method": "physics",
+      "status": "NONLINEAR_REGIME",
+      "invalid": 0,
+      "explosive": 0,
+      "fallback": 0
+    },
+    "144": {
+      "fc": 150.0,
+      "ae": 0.0,
+      "signed_err": 0.0,
+      "method": "physics",
+      "status": "NONLINEAR_REGIME",
+      "invalid": 0,
+      "explosive": 0,
+      "fallback": 0
+    }
+  }
+}

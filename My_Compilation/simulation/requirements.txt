@@ -1,3 +1,6 @@
-pandas>=2.0.0
+# Project ARJUNA — scalar simulation/data-gen runtime (PINNED, dev-only utility).
+pandas==2.3.3
+numpy==2.4.6
+scipy==1.17.0
 matplotlib>=3.7.0
-pytest>=8.0.0
+pytest==9.0.3

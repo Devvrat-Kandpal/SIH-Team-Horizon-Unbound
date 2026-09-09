@@ -1,5 +1,5 @@
 # Project ARJUNA: Quantitative Aerospace Evaluation Report
-**Standard:** ECSS-Q-ST-60-02C Space Product Assurance | MIL-STD-883 Method 1015
+**Reference Framework:** Designed with reference to ECSS-Q-ST-60-02C-era Space Product Assurance principles | MIL-STD-883 168h/125°C screening horizon (project-selected scenario, not a formal certification)
 
 ## 1. Unseen Randomized Fault Benchmark Metrics
 - **Total Test Samples:** 7,500
@@ -9,7 +9,7 @@
 - **ROC-AUC Score:** 0.9985
 - **False Negative Rate (FNR):** 0.000%
 - **False Positive Rate (FPR):** 3.549%
-- **Average Inference Latency:** 2.3165 ms per sample
+- **Average Inference Latency:** 3.6561 ms per sample
 
 ### Confusion Matrix
 | Metric | Count |
@@ -56,6 +56,7 @@ so the small errors below are a measure of OLS self-consistency, NOT physical fo
 |---|---|---|---|---|
 | **Isolation Forest Only** | 100% | 0% (Blind to linear creep) | 100% | Low |
 | **CUSUM Only** | Partial (Requires accumulation) | 100% | 100% | 0 |
+| **CUSUM Only** | Triggers if single-tick > h; latent on small shifts (requires accumulation) | 100% | 100% | 0 |
 | **Combined Pipeline (ARJUNA)** | **100%** | **100%** | **100%** | **0** |
 
 ## 4. Criticality-Aware Tiers Detection Latency

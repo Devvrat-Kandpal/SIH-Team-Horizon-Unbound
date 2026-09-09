@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import os
 import time
+import urllib.parse
 from collections import defaultdict, deque
 from typing import List
 
@@ -29,18 +30,41 @@ ADMIN_KEY: str = os.getenv("ARJUNA_ADMIN_KEY", DEFAULT_ADMIN_KEY)
 QA_KEY: str = os.getenv("ARJUNA_QA_KEY", DEFAULT_QA_KEY)
 VIEWER_KEY: str = os.getenv("ARJUNA_VIEWER_KEY", DEFAULT_VIEWER_KEY)
 
+# Optional demo operator credential the frontend can use in non-production demos.
+# Served by GET /api/config ONLY when the environment is non-production (see
+# security.is_production()). This gives the SIH demo a single configurable
+# credential without hardcoding a secret into the shipped JavaScript. In
+# production the endpoint returns no key and the frontend must be configured via
+# window.ARJUNA_API_KEY (build/deploy-injected), never committed to source.
+DEMO_API_KEY: str = os.getenv("ARJUNA_DEMO_API_KEY", API_KEY)
+
 # Fail-closed production guard: never allow predictable default dev keys in production.
 # Recognizes both ENV and ENVIRONMENT (the security-standard env var names) so the guard
 # is robust regardless of which convention the deployment uses. Development / any other
 # environment logs a clear warning instead of hard-failing (preserves demo ergonomics).
 _environment = os.getenv("ENVIRONMENT", os.getenv("ENV", "development")).lower()
+# Recognizes ARJUNA_ENV, ENVIRONMENT, and ENV so configuration is robust and standardized.
+# Development / any other environment logs a clear warning instead of hard-failing (preserves demo ergonomics).
+_environment = os.getenv(
+    "ARJUNA_ENV", os.getenv("ENVIRONMENT", os.getenv("ENV", "development"))
+).lower()
 _using_default_keys = (
     API_KEY == DEFAULT_DEV_KEY
     or ADMIN_KEY == DEFAULT_ADMIN_KEY
     or QA_KEY == DEFAULT_QA_KEY
     or VIEWER_KEY == DEFAULT_VIEWER_KEY
+    or not API_KEY.strip()
+    or not ADMIN_KEY.strip()
+    or not QA_KEY.strip()
+    or not VIEWER_KEY.strip()
 )
 if _environment == "production":
+    if not SECURITY_ENABLED:
+        raise RuntimeError(
+            "FATAL: SECURITY_ENABLED=false is not permitted in a production "
+            "environment. Production must run fail-closed with security enabled. "
+            "Set SECURITY_ENABLED=true (the safe default) before deployment."
+        )
     if _using_default_keys:
         raise RuntimeError(
             "FATAL: Default hardcoded API keys are active in a production environment. "
@@ -55,6 +79,11 @@ else:
             _environment,
         )
 
+
+def is_production_env() -> bool:
+    """True when the runtime environment is production (ARJUNA_ENV/ENVIRONMENT/ENV == 'production')."""
+    return _environment == "production"
+
 # Approved origins for restricted CORS
 DEFAULT_ALLOWED_ORIGINS = [
     "http://127.0.0.1:8000",
@@ -66,6 +95,47 @@ RAW_ORIGINS = os.getenv("ALLOWED_ORIGINS") or os.getenv("FRONTEND_ORIGINS") or "
 ALLOWED_ORIGINS: List[str] = [
     o.strip() for o in RAW_ORIGINS.split(",") if o.strip()
 ] or DEFAULT_ALLOWED_ORIGINS
+
+# Local-development hostname recognition uses EXACT parsed matching only.
+# An attacker can send a Host/Origin/Referer like "localhost.evil.io" or
+# "evil-localhost.com" that CONTAINS a loopback substring; substring matching
+# would wrongly grant local bypass privileges, so we compare the parsed hostname
+# against an exact allow-list. This closes the P1-02 local-bypass loophole.
+_LOCAL_HOSTNAMES = {"localhost", "127.0.0.1", "testserver", "::1"}
+
+
+def _norm_host(value: str | None) -> str:
+    return (value or "").strip().lower().rstrip(".")
+
+
+def _host_header_hostname(host_value: str) -> str:
+    """Parses hostname (excluding port) from a Host header value, exact-match safe."""
+    hv = _norm_host(host_value)
+    if not hv:
+        return ""
+    if hv.startswith("[") and "]" in hv:
+        return hv[1 : hv.index("]")]
+    if hv.count(":") == 1:
+        head, _, tail = hv.rpartition(":")
+        if tail.isdigit():
+            return head
+    return hv
+
+
+def _origin_hostname(origin: str) -> str:
+    """Returns the hostname portion of an http(s) origin/referer URL, or '' if unparseable."""
+    if not origin:
+        return ""
+    try:
+        return _norm_host(urllib.parse.urlparse(origin).hostname)
+    except Exception:
+        return ""
+
+
+def is_loopback_hostname(hostname: str) -> bool:
+    """True only for an EXACT approved localhost hostname (never substring)."""
+    return _norm_host(hostname) in _LOCAL_HOSTNAMES
+
 
 # Security Headers & Query extractors
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
@@ -146,23 +216,36 @@ def resolve_role_from_key(key: str) -> str | None:
 
 
 def is_local_request(request: Request) -> bool:
-    """Determines if the request originates from local development or automated tests."""
+    """Determines if the request is genuinely local to this machine or an automated test.
+
+    Uses strict EXACT hostname matching (see is_loopback_hostname) rather than permissive
+    substring checks so attacker-crafted Host/Origin/Referer values cannot request local
+    privileges. The loopback IP allow-set is deliberately small.
+    A request is local ONLY IF the connecting client IP is an exact approved loopback address
+    (localhost, 127.0.0.1, ::1, testserver).
+    Remote clients CANNOT gain local privileges simply by sending spoofed Host, Origin, or
+    Referer headers containing loopback values.
+    """
     client_ip = request.client.host if request.client else "unknown"
+    if not is_loopback_hostname(client_ip):
+        return False
+
+    # If Origin or Referer is supplied by a browser, verify that origin is also loopback
     origin = request.headers.get("origin") or request.headers.get("referer") or ""
     host_header = request.headers.get("host", "").lower()
     url_host = request.url.hostname or ""
+    if origin:
+        orig_host = _origin_hostname(origin)
+        if orig_host and not is_loopback_hostname(orig_host):
+            return False
 
     return (
-        any(
-            origin.startswith(o)
-            for o in ["http://127.0.0.1", "http://localhost", "http://testserver"]
-        )
-        or client_ip in ("testclient", "127.0.0.1", "localhost")
-        or "testserver" in host_header
-        or "127.0.0.1" in host_header
-        or "localhost" in host_header
-        or url_host in ("testserver", "localhost", "127.0.0.1")
+        is_loopback_hostname(client_ip)
+        or is_loopback_hostname(_origin_hostname(origin))
+        or is_loopback_hostname(_host_header_hostname(host_header))
+        or is_loopback_hostname(url_host)
     )
+    return True
 
 
 async def authenticate_request(request: Request, required_roles: list[str]) -> dict:
@@ -294,14 +377,9 @@ async def verify_websocket_auth(websocket: WebSocket) -> dict | None:
     origin = websocket.headers.get("origin") or ""
     host_header = websocket.headers.get("host", "").lower()
     is_local = (
-        any(
-            origin.startswith(o)
-            for o in ["http://127.0.0.1", "http://localhost", "http://testserver"]
-        )
-        or client_ip in ("testclient", "127.0.0.1", "localhost")
-        or "testserver" in host_header
-        or "127.0.0.1" in host_header
-        or "localhost" in host_header
+        is_loopback_hostname(client_ip)
+        or is_loopback_hostname(_origin_hostname(origin))
+        or is_loopback_hostname(_host_header_hostname(host_header))
     )
 
     has_explicit_key = (

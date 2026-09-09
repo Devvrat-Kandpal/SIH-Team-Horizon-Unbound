@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "project-arjuna"
 version = "2.1.0"
-description = "AI-Driven Space-Grade Component Burn-In Telemetry & Screening Engine for ISRO"
+description = "Physics-informed semiconductor burn-in telemetry & screening prototype for ISRO (SIH 26170)"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [

@@ -3,8 +3,9 @@ cusum_drift.py — Project ARJUNA (SIH 26170): Time-Series CUSUM Drift Detector
 Author: Member 4 (Time-Series AI Specialist)
 
 Implements the Tabular Cumulative Sum (CUSUM) statistical quality control algorithm
-for detecting slow, latent thermal and parametric creep in space-grade electronics
-during High-Temperature Operating Life (HTOL) screening per ECSS-Q-ST-60-02C.
+for detecting slow, latent thermal and parametric creep in (simulated) electronics
+during High-Temperature Operating Life (HTOL) screening, aligned with
+ECSS-Q-ST-60-02C-era space product assurance principles.
 
 Decision thresholds are mission-criticality-weighted via CRITICALITY_CONFIG:
   - Level 3 (mission-critical): tightest threshold → earliest alarm

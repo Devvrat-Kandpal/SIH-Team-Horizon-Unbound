@@ -2,7 +2,7 @@
 tests/test_unit.py — Project ARJUNA (SIH 26170)
 Unit tests for core physical formulas, Arrhenius leakage acceleration,
 12-bit ADC quantization, CUSUM accumulation, and OLS drift projection.
-Conforms to ECSS-Q-ST-60-02C Space Product Assurance.
+Designed with reference to ECSS-Q-ST-60-02C-era space product assurance concepts (prototype).
 """
 import math
 import sys
@@ -24,7 +24,7 @@ def test_arrhenius_leakage_acceleration():
     """M-07 fix: test the ACTUAL implementation (_arrhenius_leakage) and the
     REAL activation energy constant (Ea_kB_KELVIN = 4000 K ~ 0.345 eV), not a
     re-derived equation with different constants."""
-    from Backend.physics_constants import Ea_kB_KELVIN, I_LEAK_BASE_A
+    from Backend.physics_constants import I_LEAK_BASE_A, Ea_kB_KELVIN
 
     sim = ComponentSimulator(criticality_level=2)
 
@@ -86,8 +86,7 @@ def test_timestep_convergence_destruction_time():
     assert t_lo is not None, "DUT must destroy under drift at dt=0.5"
     # Convergence: halving dt must change the destruction hour by < 15%
     assert abs(t_lo - t_hi) / t_hi < 0.15, (
-        "Destruction time not converged: dt=1.0 -> %.2f h, dt=0.5 -> %.2f h"
-        % (t_hi, t_lo)
+        f"Destruction time not converged: dt=1.0 -> {t_hi:.2f} h, dt=0.5 -> {t_lo:.2f} h"
     )
 
 

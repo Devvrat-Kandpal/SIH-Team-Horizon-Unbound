@@ -70,31 +70,37 @@ CREATE INDEX IF NOT EXISTS idx_events_type
 ALTER TABLE public.telemetry_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.system_events ENABLE ROW LEVEL SECURITY;
 
--- Allow public read access (for judges, dashboards, and evaluation queries)
+-- Allow public read access (DEMO POLICY ONLY — see notes below)
+-- NOTE (audit P1-17): public SELECT is intentionally retained ONLY as an
+-- explicit DEMO policy so judges can query dashboards/reports without
+-- authentication. It is NOT a production security posture. For production the
+-- recommendation is: telemetry -> authorized read; system_events -> QA/admin.
 DROP POLICY IF EXISTS "Allow public read access to telemetry" ON public.telemetry_logs;
-CREATE POLICY "Allow public read access to telemetry"
+CREATE POLICY "Allow public read access to telemetry"  -- DEMO POLICY
     ON public.telemetry_logs FOR SELECT
     TO anon, authenticated
     USING (true);
 
-DROP POLICY IF EXISTS "Allow public read access to events" ON public.system_events;
-CREATE POLICY "Allow public read access to events"
+DROP POLICY IF EXISTS "Allow public read access to events" ON public.system_events;  -- DEMO POLICY
+CREATE POLICY "Allow public read access to events"     -- DEMO POLICY
     ON public.system_events FOR SELECT
     TO anon, authenticated
     USING (true);
 
--- Allow backend ingestion (Restricts INSERT to authenticated or service_role)
--- NOTE: For production, the FastAPI backend must use the service_role key to insert.
-DROP POLICY IF EXISTS "Allow ingestion into telemetry" ON public.telemetry_logs;
-CREATE POLICY "Allow ingestion into telemetry"
+-- Backend ingestion — the FastAPI backend (via the service_role key) is the
+-- AUTHORITATIVE telemetry writer (P0-05). Only service_role may INSERT here;
+-- arbitrary authenticated end-users are NOT permitted to inject telemetry.
+-- This closes the previous policy that granted INSERT to `authenticated`.
+DROP POLICY IF EXISTS "Allow backend ingestion into telemetry" ON public.telemetry_logs;
+CREATE POLICY "Allow backend ingestion into telemetry"
     ON public.telemetry_logs FOR INSERT
-    TO authenticated, service_role
+    TO service_role
     WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Allow ingestion into events" ON public.system_events;
-CREATE POLICY "Allow ingestion into events"
+CREATE POLICY "Allow backend ingestion into events"
     ON public.system_events FOR INSERT
-    TO authenticated, service_role
+    TO service_role
     WITH CHECK (true);
 
 -- ==============================================================================
@@ -113,6 +119,18 @@ BEGIN
     RETURN deleted_count;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- P0-04: A SECURITY DEFINER function executes with the privileges of its owner,
+-- so it MUST be locked down:
+--   1. Restrict EXECUTE to the intended privileged role (service_role), never PUBLIC.
+--   2. Set an explicit, safe search_path so attacker-influenced schemas cannot be
+--      searched ahead of pg_catalog/public when the function body runs.
+-- NOTE: Because service_role bypasses Postgres RLS, the DELETE issued by this
+-- maintenance function is intended and ownership-appropriate (it is the only
+-- telemetry purge channel).
+REVOKE ALL ON FUNCTION public.cleanup_old_telemetry(INT) FROM PUBLIC;
+ALTER FUNCTION public.cleanup_old_telemetry(INT) SET search_path = pg_catalog, public;
+GRANT EXECUTE ON FUNCTION public.cleanup_old_telemetry(INT) TO service_role;
 
 -- Verification commentary
 COMMENT ON TABLE public.telemetry_logs IS 'Project ARJUNA: Real-time High-Temperature Operating Life (HTOL) burn-in sensor logs';

@@ -27,3 +27,23 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 if str(ROOT_DIR / "Backend") not in sys.path:
     sys.path.insert(0, str(ROOT_DIR / "Backend"))
+
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def reset_test_rate_limiter():
+    """Ensure in-memory sliding window rate limiter is reset between test cases."""
+    try:
+        from Backend.security import mutation_rate_limiter
+
+        mutation_rate_limiter.reset()
+    except ImportError:
+        pass
+    yield
+    try:
+        from Backend.security import mutation_rate_limiter
+
+        mutation_rate_limiter.reset()
+    except ImportError:
+        pass

@@ -1,0 +1,51 @@
+# ==============================================================================
+# PROJECT ARJUNA (SIH 26170): PRODUCTION DOCKER COMPOSE ORCHESTRATION (P0-06)
+# Fail-closed deployment configuration for production operations.
+# Predictable defaults are strictly prohibited; strong secrets are enforced.
+# ==============================================================================
+
+version: "3.8"
+
+services:
+  arjuna-mission-control:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: project-arjuna:production
+    container_name: arjuna_mission_control_prod
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - ARJUNA_ENV=production
+      - ENVIRONMENT=production
+      - SECURITY_ENABLED=true
+      # P0-06: The ${VAR:?msg} syntax REQUIRES each variable to be explicitly provided.
+      # Docker Compose will refuse to start if any secret is unset or empty.
+      - ARJUNA_API_KEY=${ARJUNA_API_KEY:?ARJUNA_API_KEY is required for production}
+      - ARJUNA_ADMIN_KEY=${ARJUNA_ADMIN_KEY:?ARJUNA_ADMIN_KEY is required for production}
+      - ARJUNA_QA_KEY=${ARJUNA_QA_KEY:?ARJUNA_QA_KEY is required for production}
+      - ARJUNA_VIEWER_KEY=${ARJUNA_VIEWER_KEY:?ARJUNA_VIEWER_KEY is required for production}
+      # Demo credentials are explicitly disabled in production
+      - ARJUNA_DEMO_API_KEY=
+      # Supabase Cloud Persistence (locked down per migrations/supabase_schema.sql)
+      - SUPABASE_ENABLED=${SUPABASE_ENABLED:-false}
+      - SUPABASE_URL=${SUPABASE_URL:-}
+      - SUPABASE_KEY=${SUPABASE_KEY:-}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2048M
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+

@@ -31,11 +31,11 @@ if __name__ == "__main__":
     print("  PROJECT ARJUNA (SIH 26170): INTEGRATED MISSION CONTROL ENGINE")
     print("==========================================================================")
     print(f"  Binding Address:           http://{host}:{port}")
-    print("  Hardware Physics Engine:   Active (125°C MIL-STD-883)")
+    print("  Hardware Physics Engine:   Active (physics-informed, 125°C screening scenario)")
     print("  AI/ML Engine (Mod A & B):  Active (Dynamic Outlier & 168h OLS)")
     print("  Time-Series CUSUM Engine:  Active (Thermal Creep Tracking)")
     print(f"  Streaming WebSocket on:    ws://{host}:{port}/ws")
-    print("  Standard: ECSS-Q-ST-60-02C Space Product Assurance")
+    print("  Reference framework: ECSS-Q-ST-60-02C principles (prototype, not formally certified)")
     print("==========================================================================\n")
 
     # Launch browser automatically in background unless disabled or headless container

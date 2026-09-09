@@ -56,15 +56,20 @@ Each item lists its root cause and the concrete path to resolution.
 
 ## Verification status (environment-bounded honesty)
 
+> **Verification env (this run):** Python 3.14.4 · mypy 2.3.1 · ruff 0.16.1 ?
+> node v24 · Docker 29.5.3 · scikit-learn 1.9.0 · numpy 2.4.6 · pandas 2.3.3 ?
+> scipy 1.17.0 · recorded 2026-09. Each `VERIFIED` row states the exact tool/env
+> used; rows requiring an external service are marked `UNVERIFIED`.
+
 | Item | Status | Reason |
 |---|---|---|
-| T1 Type checking (mypy) | **VERIFIED — clean** (0 issues, 9 files) | Locally executed; CI runs it advisively (`\|\| true`), left as-is pending CI-environment reproduction. |
-| T2 Linting (ruff) | **VERIFIED — clean** | `ruff check Backend/ tests/ scripts/` passes. |
-| T3 Docker build & run | **VERIFIED** | Multi-stage build succeeds; container boots, loads the model, and `/api/health` returns healthy JSON. Two runtime defects found and fixed: (1) packages installed to `/home/arjuna/.local` but `HOME=/app` meant Python never resolved them (ModuleNotFoundError) → pinned `ENV HOME`; (2) bare `docker run` bound `127.0.0.1` inside the container so published ports/healthcheck could never work → `ENV HOST=0.0.0.0`. |
-| T4 / F1 / F2 Browser visual regression | **UNVERIFIED — no browser automation available** | All chart/alert values are code-traced from backend payloads to DOM writes; rendering itself not screenshot-verified. |
-| T5 / T6 Live Supabase / RLS | **UNVERIFIED — no live credentials** | Runbook + opt-in verifier provided (`SECURITY_REMEDIATION.md`, `scripts/check_supabase_rls.py`). |
+| T1 Type checking (mypy) | **VERIFIED · clean** (0 issues, 10 files) | `mypy Backend/` passes on this env; CI now enforces it (no `|| true`). |
+| T2 Linting (ruff) | **VERIFIED · clean** | `ruff check Backend/ tests/` passes (0 issues). |
+| T3 Docker build & run | **NOT VERIFIED (env-limited)** | Docker CLI 29.5.3 is present but the Docker daemon is not running in this environment, so no image was built here. The Dockerfile was hardened and a CI `docker-build` job (per P1-12) will build + smoke-test it on a runner with a running daemon. |
+| T4 / F1 / F2 Browser visual regression | **UNVERIFIED · no browser automation available** | All chart/alert values are code-traced from backend payloads to DOM writes; rendering itself not screenshot-verified. |
+| T5 / T6 Live Supabase / RLS | **UNVERIFIED · no live credentials / no live Postgres** | Static RLS/function lockdown is regression-tested (`tests/test_supabase_rls.py`); live enforcement must be re-verified against a real project. |
 | T7 Long-duration stress | **PARTIALLY VERIFIED** | 2,000-tick sustained run + 3 concurrent WS clients + repeated resets pass (`tests/test_stress.py`); multi-hour soak not run. |
-| S5 Persistence failure visibility | **VERIFIED** | Non-2xx/transport failures now set `last_error` + throttled WARNING; regression-tested. |
+| S5 Persistence failure visibility | **VERIFIED** | Non-2xx/transport failures set `last_error` + throttled WARNING; regression-tested. |
 
 ## Intentional design decisions (investigated and cleared — NOT defects)
 

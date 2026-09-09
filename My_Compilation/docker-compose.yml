@@ -18,10 +18,18 @@ services:
       - HOST=0.0.0.0
       - PORT=8000
       - SECURITY_ENABLED=true
+      # Explicitly development/demo environment. The predictable default keys
+      # below are DEVELOPMENT-ONLY conveniences (see the PRODUCTION block at the
+      # bottom of this file). security.py refuses to start with these defaults if
+      # ENVIRONMENT=production is set.
+      - ENVIRONMENT=development
       - ARJUNA_API_KEY=${ARJUNA_API_KEY:-arjuna-mission-key-2026}
       - ARJUNA_ADMIN_KEY=${ARJUNA_ADMIN_KEY:-arjuna-admin-key-2026}
       - ARJUNA_QA_KEY=${ARJUNA_QA_KEY:-arjuna-qa-key-2026}
       - ARJUNA_VIEWER_KEY=${ARJUNA_VIEWER_KEY:-arjuna-viewer-key-2026}
+      # Demo frontend credential served by GET /api/config (P0-02). Override for
+      # any non-trivially-exposed deployment.
+      - ARJUNA_DEMO_API_KEY=${ARJUNA_DEMO_API_KEY:-arjuna-mission-key-2026}
       - SUPABASE_ENABLED=${SUPABASE_ENABLED:-false}
       - SUPABASE_URL=${SUPABASE_URL:-}
       - SUPABASE_KEY=${SUPABASE_KEY:-}
@@ -39,4 +47,23 @@ services:
         reservations:
           cpus: "0.5"
           memory: 512M
+
+# ==============================================================================
+# PRODUCTION DEPLOYMENT (P0-06) — DO NOT use the development compose above for
+# anything beyond the SIH demo. For production you MUST:
+#   1. Set ENVIRONMENT=production (security.py then hard-refuses predictable
+#      default keys AND refuses SECURITY_ENABLED=false — fail-closed).
+#   2. Provide strong secrets; the `${VAR:?msg}` syntax REQUIRES each variable
+#      or the container refuses to start (no guessable fallback).
+#   3. Point SUPABASE_* at the locked-down schema in migrations/supabase_schema.sql.
+#
+# Example (uncomment and adapt):
+#   environment:
+#     - ENVIRONMENT=production
+#     - SECURITY_ENABLED=true
+#     - ARJUNA_API_KEY=${ARJUNA_API_KEY:?ARJUNA_API_KEY required}
+#     - ARJUNA_ADMIN_KEY=${ARJUNA_ADMIN_KEY:?ARJUNA_ADMIN_KEY required}
+#     - ARJUNA_QA_KEY=${ARJUNA_QA_KEY:?ARJUNA_QA_KEY required}
+#     - ARJUNA_VIEWER_KEY=${ARJUNA_VIEWER_KEY:?ARJUNA_VIEWER_KEY required}
+# ==============================================================================
 

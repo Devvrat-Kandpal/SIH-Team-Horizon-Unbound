@@ -406,7 +406,10 @@ class MultivariateAnomalyDetector:
         )
 
         if not is_anomaly:
-            justification = "QA STATUS [PASSED]: Component operates within 3-sigma lot bounds and nominal ECSS screening limits."
+            justification = (
+                "QA STATUS [PASSED]: Component operates within 3-sigma lot bounds "
+                "and nominal ECSS screening limits."
+            )
             structured_evidence = {
                 "verdict": "PASSED",
                 "fault_type": "NORMAL",
@@ -422,14 +425,17 @@ class MultivariateAnomalyDetector:
         reasons = []
         if iddq is not None and z_iddq > 3.0:
             reasons.append(
-                f"Dynamic Outlier: Standby current Iddq ({iddq:.1f} uA) is {iddq / mean_iddq:.1f}x above Lot Mean ({mean_iddq:.1f} uA) despite passing static 50 uA limit (Z-Score: +{z_iddq:.1f} sigma)"
+                f"Dynamic Outlier: Standby current Iddq ({iddq:.1f} uA) is "
+                f"{iddq / mean_iddq:.1f}x above Lot Mean ({mean_iddq:.1f} uA) despite "
+                f"passing static 50 uA limit (Z-Score: +{z_iddq:.1f} sigma)"
             )
             rule_triggered = "DYNAMIC_OUTLIER_3SIGMA_EXCEEDANCE"
             recommended_action = "QUARANTINE_LOT_AND_EARLY_REJECT"
 
         if voltage < 2.0 and current > 4.0:
             reasons.append(
-                f"Catastrophic Short: Severe voltage collapse ({voltage:.2f} V) coupled with current surge ({current:.2f} A)"
+                f"Catastrophic Short: Severe voltage collapse ({voltage:.2f} V) "
+                f"coupled with current surge ({current:.2f} A)"
             )
             rule_triggered = "OCP_FOLDBACK_SHORT_CIRCUIT"
             recommended_action = "EMERGENCY_SHUTDOWN_OCP"
@@ -450,7 +456,8 @@ class MultivariateAnomalyDetector:
 
         if not reasons:
             reasons.append(
-                f"Multivariate Correlation Failure: Non-linear parameter deviation detected (Severity Score: {score * 100:.1f}%)"
+                f"Multivariate Correlation Failure: Non-linear parameter deviation "
+                f"detected (Severity Score: {score * 100:.1f}%)"
             )
             rule_triggered = "MULTIVARIATE_ISOLATION_DEVIATION"
             recommended_action = "REJECT_COMPONENT_PARAMETRIC_REVIEW"

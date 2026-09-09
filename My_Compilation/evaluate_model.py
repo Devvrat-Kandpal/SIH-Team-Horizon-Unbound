@@ -476,7 +476,11 @@ def benchmark_ablation_study(detector: MultivariateAnomalyDetector) -> Dict[str,
 
     # 2. CUSUM Only
     cusum = DriftDetector(mean=lot_mean, std=lot_std, criticality_level=2)
-    # Test A: Single spike (CUSUM needs consecutive accumulation, single tick doesn't reach threshold 5.0)
+    # Test A: Single spike. In legacy mode (auto_baseline=False) a single 45 uA
+    # tick yields S+ = max(0, 45 - (10 + 0.5)) = 34.5 >= h=5.0, so it DOES trigger.
+    # (Corrected comment P1-05: CUSUM's limitation is sustained sub-threshold creep
+    # latency and the lack of multivariate context, not an inability to exceed h on
+    # a single large tick.)
     flag_a = cusum.evaluate_drift(45.0)
     cusum.reset()
     # Test B: Slow creep (50 steps of +0.15 uA)
@@ -878,7 +882,8 @@ def benchmark_unclamped_nominal(
 def run_full_evaluation(unclamped_nominal_samples: int = 3000):
     print("==========================================================================")
     print("  PROJECT ARJUNA (SIH 26170): COMPREHENSIVE AEROSPACE BENCHMARK SUITE    ")
-    print("  Conforming to ECSS-Q-ST-60-02C & MIL-STD-883 Space Qualification        ")
+    print("  Designed with reference to ECSS-Q-ST-60-02C & MIL-STD-883 principles    ")
+    print("  Reference Framework: ECSS-Q-ST-60-02C Principles & MIL-STD-883 Horizon  ")
     print("==========================================================================\n")
 
     model_path = BASE_DIR / "Model" / "isolation_forest_model.joblib"
@@ -999,7 +1004,7 @@ def run_full_evaluation(unclamped_nominal_samples: int = 3000):
     # Build Master Report
     full_report = {
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "standard": "ECSS-Q-ST-60-02C & MIL-STD-883",
+        "standard": "Designed with reference to ECSS-Q-ST-60-02C principles & MIL-STD-883 screening horizon",
         "unseen_fault_benchmark": unseen_results,
         "drift_168h_ground_truth_benchmark": drift_results,
         "drift_168h_honest_vs_real_trajectory": honest_drift_results,
@@ -1039,7 +1044,7 @@ def run_full_evaluation(unclamped_nominal_samples: int = 3000):
     honest_rows = "\n".join(honest_lines)
 
     md_content = f"""# Project ARJUNA: Quantitative Aerospace Evaluation Report
-**Standard:** ECSS-Q-ST-60-02C Space Product Assurance | MIL-STD-883 Method 1015
+**Reference Framework:** Designed with reference to ECSS-Q-ST-60-02C-era Space Product Assurance principles | MIL-STD-883 168h/125°C screening horizon (project-selected scenario, not a formal certification)
 
 ## 1. Unseen Randomized Fault Benchmark Metrics
 - **Total Test Samples:** {unseen_results["total_samples"]:,}
@@ -1091,6 +1096,7 @@ so the small errors below are a measure of OLS self-consistency, NOT physical fo
 |---|---|---|---|---|
 | **Isolation Forest Only** | 100% | 0% (Blind to linear creep) | 100% | Low |
 | **CUSUM Only** | Partial (Requires accumulation) | 100% | 100% | 0 |
+| **CUSUM Only** | Triggers if single-tick > h; latent on small shifts (requires accumulation) | 100% | 100% | 0 |
 | **Combined Pipeline (ARJUNA)** | **100%** | **100%** | **100%** | **0** |
 
 ## 4. Criticality-Aware Tiers Detection Latency

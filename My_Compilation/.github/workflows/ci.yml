@@ -33,7 +33,16 @@ jobs:
 
       - name: Static Type Check with Mypy
         run: |
-          mypy Backend/ --ignore-missing-imports || true
+          # NO `|| true` — a type error must fail the pipeline (P1-10).
+          mypy Backend/ --ignore-missing-imports
+
+      - name: Python Bytecode Compile Check
+        run: |
+          python -m compileall -q Backend Model simulation scripts tests main.py evaluate_model.py criticality_config.py
+
+      - name: JavaScript Syntax Validation
+        run: |
+          node --check Frontend/script.js
 
       - name: Run Full 7-Module Pytest Test Suite
         run: |
@@ -48,4 +57,49 @@ jobs:
           test -f reports/evaluation_report.json
           test -f reports/ablation_study.md
           echo "All benchmark reports verified successfully."
+
+  docker-build:
+    name: Build & Smoke-test Container
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Project ARJUNA Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: false
+          load: true
+          tags: project-arjuna:ci
+
+      - name: Container Smoke Test
+        env:
+          SECURITY_ENABLED: "true"
+          ENVIRONMENT: "development"
+          ARJUNA_API_KEY: "ci-x-strong-5001"
+          ARJUNA_ADMIN_KEY: "ci-x-strong-5002"
+          ARJUNA_QA_KEY: "ci-x-strong-5003"
+          ARJUNA_VIEWER_KEY: "ci-x-strong-5004"
+        run: |
+          docker run -d --rm --name arjuna-ci \
+            -p 8000:8000 \
+            -e HOST=0.0.0.0 -e PORT=8000 -e NO_BROWSER=1 \
+            -e SECURITY_ENABLED=true \
+            -e ENVIRONMENT=development \
+            -e ARJUNA_API_KEY=ci-x-strong-5001 \
+            -e ARJUNA_ADMIN_KEY=ci-x-strong-5002 \
+            -e ARJUNA_QA_KEY=ci-x-strong-5003 \
+            -e ARJUNA_VIEWER_KEY=ci-x-strong-5004 \
+            project-arjuna:ci
+          # Wait for health endpoint
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:8000/api/health; then exit 0; fi
+            sleep 2
+          done
+          echo "Container healthcheck did not pass in time" && exit 1
 

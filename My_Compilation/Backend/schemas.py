@@ -46,7 +46,10 @@ class StructuredEvidence(BaseModel):
     fault_type: str = Field("NORMAL", description="Classified fault signature")
     detection_source: str = Field(
         "none",
-        description="Subsystem flagging the condition (e.g. isolation_forest, cusum, z_score_safety_net, hybrid_fusion)",
+        description=(
+            "Subsystem flagging the condition (e.g. isolation_forest, cusum, "
+            "z_score_safety_net, hybrid_fusion)"
+        ),
     )
     criticality_level: int = Field(
         2,

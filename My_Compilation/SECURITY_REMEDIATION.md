@@ -52,7 +52,7 @@ Facts from the code (no live verification performed):
 
 | Layer | Fact |
 |---|---|
-| `migrations/supabase_schema.sql` | `telemetry_logs`/`system_events` allow INSERT only to `authenticated, service_role`; SELECT is public. |
+| `migrations/supabase_schema.sql` | `telemetry_logs`/`system_events` allow INSERT only to `service_role` (authoritative backend writer; P0-05). Arbitrary `authenticated` end-users have **no** INSERT; SELECT is public (explicit demo policy). |
 | `Backend/database.py` | Ingests with whatever key `SUPABASE_KEY` provides. |
 | Consequence | A **publishable/anon-class key cannot insert** — PostgREST returns 401/403 and the store falls back to the in-memory buffer. Since the S5 fix, this fallback now logs a throttled `PERSISTENCE FALLBACK` warning and sets `last_error` (visible via `/api/status` persistence state), so it is no longer silent. |
 | Correct production config | Backend `.env` must carry a **service_role key** (server-side only) for inserts. Publishable/anon keys are appropriate only for direct dashboard reads. |

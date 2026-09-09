@@ -111,7 +111,10 @@ def test_cross_seed_robustness(trained_model):
     random.seed(10)
     for _ in range(n_samples):
         res = trained_model.detect_spike(
-            current=random.uniform(-5.0, 15.0), voltage=random.uniform(-10.0, 20.0), temp=random.uniform(0.0, 300.0), iddq=random.uniform(-20.0, 100.0)
+            current=random.uniform(-5.0, 15.0),
+            voltage=random.uniform(-10.0, 20.0),
+            temp=random.uniform(0.0, 300.0),
+            iddq=random.uniform(-20.0, 100.0),
         )
         if res["is_anomaly"]:
             anomalies_seed1 += 1
@@ -119,7 +122,10 @@ def test_cross_seed_robustness(trained_model):
     random.seed(999)
     for _ in range(n_samples):
         res = trained_model.detect_spike(
-            current=random.uniform(-5.0, 15.0), voltage=random.uniform(-10.0, 20.0), temp=random.uniform(0.0, 300.0), iddq=random.uniform(-20.0, 100.0)
+            current=random.uniform(-5.0, 15.0),
+            voltage=random.uniform(-10.0, 20.0),
+            temp=random.uniform(0.0, 300.0),
+            iddq=random.uniform(-20.0, 100.0),
         )
         if res["is_anomaly"]:
             anomalies_seed2 += 1

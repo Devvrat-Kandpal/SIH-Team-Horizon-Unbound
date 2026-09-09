@@ -1,11 +1,11 @@
 """
 simulator.py — SIH 26170: Physically-Grounded Virtual Burn-In Chamber Simulator
-Simulates space-grade semiconductor telemetry with thermal RC dynamics, Arrhenius
+Simulates physics-informed semiconductor telemetry with thermal RC dynamics, Arrhenius
 leakage coupling, power supply compliance limits, bus regulation, and ADC quantization.
 
-Burn-in baseline is calibrated to the MIL-STD-883 static steady-state burn-in
-condition (125°C), consistent with NASA EEE-INST-002 screening practice for
-flight-grade EEE parts. Each simulated component also carries a criticality_level
+Burn-in baseline uses a project-selected 125°C static screening scenario, designed with
+reference to MIL-STD-883 Method 1015 / NASA EEE-INST-002 practice (a simulation horizon,
+not a universal or certified standard). Each simulated component also carries a criticality_level
     (1 = low criticality, 2 = standard, 3 = mission-critical),
 mirroring the tiered reliability-level framework used in EEE-INST-002 Table 2A,
 so downstream anomaly detectors can apply mission-criticality-weighted thresholds.
@@ -62,8 +62,9 @@ def configure_logging(level: str = "INFO") -> None:
 
 class ComponentSimulator:
     """
-    Stateful physics engine modeling a space-grade silicon component during
-    MIL-STD-883 / EEE-INST-002 static steady-state burn-in.
+    Stateful physics engine modeling a simulated semiconductor component during
+    a MIL-STD-883 / EEE-INST-002-aligned static steady-state burn-in. (Prototype /
+    simulation-only; not representative of previously-unseen real silicon.)
 
     Physics Models Implemented:
       - Exponential Arrhenius leakage current: I_leak(T) = I0 * exp(Ea / kB * (1/T0 - 1/T))
@@ -74,8 +75,9 @@ class ComponentSimulator:
       - Gaussian sensor noise & 12-bit ADC discrete quantization
 
     Reliability Framework:
-      - Static burn-in temperature baseline (125°C) per MIL-STD-883 Method 1015
-        static burn-in condition for hybrid microcircuits / flight EEE parts.
+      - Static burn-in temperature baseline (125°C) is our SELECTED screening
+        scenario, designed with reference to MIL-STD-883 Method 1015 / EEE-INST-002
+        practice — not a universal or formal requirement.
       - criticality_level (1/2/3) mirrors NASA EEE-INST-002 Table 2A reliability
         tiers: Level 1 = low-criticality applications, Level 2 = standard, and
         Level 3 = highest criticality for flight or human-rated hardware.
@@ -294,7 +296,10 @@ class ComponentSimulator:
     def compute_iddq_and_prop_delay(
         self, temp: float, volt: float, mode: str = "normal", drift_time: float = 0.0
     ) -> Tuple[float, float]:
-        """Computes standby current Iddq (in uA) and CMOS propagation delay (in ns) physically coupled to temperature and voltage."""
+        """Computes standby current Iddq (in uA) and CMOS propagation delay (in ns).
+
+        Both are physically coupled to temperature and voltage.
+        """
         # Arrhenius thermal scaling for Iddq: ~10 uA nominal at 125°C
         t_kelvin = temp + 273.15
         t0_kelvin = 125.0 + 273.15
@@ -467,7 +472,7 @@ def generate_dataset(
                 iq, pd_val = sim.compute_iddq_and_prop_delay(
                     t, v, mode="drift", drift_time=t_phys
                 )
-                
+
                 # Ground truth independent of simulation step
                 lot_mean = IDDQ_NOMINAL_LOT_MEAN_UA
                 lot_std = 1.17

@@ -17,6 +17,34 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnEnterDashboard = document.getElementById("btnEnterDashboard");
     let hasEntered = false;
 
+    // ── Frontend authentication (P0-02) ─────────────────────────────────────
+    // Single configurable credential resolved from GET /api/config (non-prod) or
+    // window.ARJUNA_API_KEY (build/deploy-injected in production). Never a
+    // hardcoded secret shipped in this file.
+    let arjunaApiKey = window.ARJUNA_API_KEY || null;
+    let configFetchAttempted = false;
+
+    function authHeaders(extra = {}) {
+        const h = Object.assign({}, extra);
+        if (arjunaApiKey) h["X-API-Key"] = arjunaApiKey;
+        return h;
+    }
+
+    async function ensureApiKey() {
+        if (arjunaApiKey || configFetchAttempted) return arjunaApiKey;
+        configFetchAttempted = true;
+        try {
+            const r = await fetch("/api/config");
+            if (r.ok) {
+                const cfg = await r.json();
+                if (cfg && cfg.demo_api_key) arjunaApiKey = cfg.demo_api_key;
+            }
+        } catch (e) {
+            arjunaApiKey = null; // offline: dev bypass handles local demo
+        }
+        return arjunaApiKey;
+    }
+
     function enterDashboard() {
         if (hasEntered) return;
         hasEntered = true;
@@ -115,7 +143,14 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             const saved = Math.max(0, 168 - burnInHours);
             if (earlyHoursSaved) {
-                earlyHoursSaved.innerHTML = `Chamber Time Saved: <strong style="color:#ef4444;">${saved} hrs (SAVED)</strong>`;
+                // DOM-XSS hardening: build the badge with textContent/DOM nodes
+                // only (no innerHTML) so no markup path exists for dynamic data.
+                earlyHoursSaved.textContent = "";
+                earlyHoursSaved.appendChild(document.createTextNode("Chamber Time Saved: "));
+                const _strong = document.createElement("strong");
+                _strong.textContent = `${saved} hrs (SAVED)`;
+                _strong.style.color = "#ef4444";
+                earlyHoursSaved.appendChild(_strong);
             }
         } else {
             if (earlyRejectTag) {
@@ -123,7 +158,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 earlyRejectTag.className = "earlyRejectBadge";
             }
             if (earlyHoursSaved) {
-                earlyHoursSaved.innerHTML = `Chamber Time Saved: <strong>0 hrs</strong>`;
+                earlyHoursSaved.textContent = "Chamber Time Saved: 0 hrs";
             }
         }
     }
@@ -542,7 +577,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 
                 // Clear old alerts to prevent false error impressions on new runs
                 if (alertFeedEl) {
-                    alertFeedEl.innerHTML = '';
+                    alertFeedEl.textContent = '';
                 }
                 lastAlertMode = "nominal";
             }
@@ -610,12 +645,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const wsStatusTextEl = document.getElementById("wsStatusText");
     const wsDotEl = document.getElementById("wsDot");
 
-    function connectWebSocket() {
+    async function connectWebSocket() {
         if (isPageUnloading) return;
+        // Resolve the managed credential before opening the socket (P0-02).
+        await ensureApiKey();
         try {
             const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
             const host = window.location.host || "127.0.0.1:8000";
-            ws = new WebSocket(`${proto}//${host}/ws`);
+            const wsAuth = arjunaApiKey ? `?api_key=${encodeURIComponent(arjunaApiKey)}` : "";
+            ws = new WebSocket(`${proto}//${host}/ws${wsAuth}`);
             ws.onopen = () => {
                 isWsConnected = true;
                 if (wsStatusTextEl) wsStatusTextEl.textContent = "LIVE BACKEND CONNECTED";
@@ -714,12 +752,12 @@ document.addEventListener("DOMContentLoaded", () => {
             if (eventType) {
                 fetch("/api/inject-fault", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: authHeaders({ "Content-Type": "application/json" }),
                     body: JSON.stringify({ event_type: eventType }),
                 }).catch(() => {});
             }
         } else if (action === "reset" || (action === "set_scenario" && scenario === "nominal")) {
-            fetch("/api/reset", { method: "POST" }).catch(() => {});
+            fetch("/api/reset", { method: "POST", headers: authHeaders() }).catch(() => {});
         }
         if (ws && ws.readyState === WebSocket.OPEN) {
             const msg = { action: action };
@@ -826,7 +864,7 @@ document.addEventListener("DOMContentLoaded", () => {
             activeScenarioLabel.textContent = "SCENARIO: NOMINAL LOT SCREENING";
             activeScenarioLabel.style.color = "#38bdf8";
             activeScenarioLabel.style.borderColor = "#38bdf8";
-            if (alertFeedEl) alertFeedEl.innerHTML = "";
+            if (alertFeedEl) alertFeedEl.textContent = "";
             updateBurnInInterval(0, false);
             pushAlert("alert-green", "🔄 Chamber reset: 0h baseline restored.");
             sendWsAction("reset");
@@ -894,7 +932,7 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const resp = await fetch("/api/set-criticality", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: authHeaders({ "Content-Type": "application/json" }),
                 body: JSON.stringify({ criticality_level: level }),
             });
             if (resp.ok) {
@@ -928,6 +966,18 @@ document.addEventListener("DOMContentLoaded", () => {
     // We patch the function by wrapping around the existing logic that fires on each message.
     const _origUpdate = updateDashboardUI;
     window._arjunaExtendedUpdate = function(payload) {
+        // Static-row builder: textContent/DOM only (never innerHTML), so the
+        // FDIR panel contains no markup-injection path for telemetry strings.
+        function _buildStaticRow(row, label, strongId, initial) {
+            const _lab = document.createElement("span");
+            _lab.textContent = label;
+            const _val = document.createElement("strong");
+            _val.id = strongId;
+            _val.className = "text-green";
+            _val.textContent = initial;
+            row.appendChild(_lab);
+            row.appendChild(_val);
+        }
         const faultType = payload.fault_type || "NORMAL";
         const detSource = payload.detection_source || "none";
         const cusumThr  = payload.cusum_threshold !== undefined ? payload.cusum_threshold : null;
@@ -948,19 +998,19 @@ document.addEventListener("DOMContentLoaded", () => {
             faultTypeRow.className = "fdirStatusRow";
             faultTypeRow.style.cssText = "border-top: 1px solid rgba(239,68,68,0.3); margin-top: 6px; padding-top: 6px;";
             faultTypeRow.id = "faultTypeRow";
-            faultTypeRow.innerHTML = `<span>Fault Classification:</span><strong id="faultTypeText" class="text-green">NORMAL</strong>`;
+            _buildStaticRow(faultTypeRow, "Fault Classification:", "faultTypeText", "NORMAL");
             fdirBox.appendChild(faultTypeRow);
 
             detSourceRow = document.createElement("div");
             detSourceRow.className = "fdirStatusRow";
             detSourceRow.id = "detSourceRow";
-            detSourceRow.innerHTML = `<span>Detection Source:</span><strong id="detSourceText" class="text-green">—</strong>`;
+            _buildStaticRow(detSourceRow, "Detection Source:", "detSourceText", "—");
             fdirBox.appendChild(detSourceRow);
 
             critLevelRow = document.createElement("div");
             critLevelRow.className = "fdirStatusRow";
             critLevelRow.id = "critLevelRow";
-            critLevelRow.innerHTML = `<span>Criticality Level:</span><strong id="critLevelText" class="text-green">LEVEL 2</strong>`;
+            _buildStaticRow(critLevelRow, "Criticality Level:", "critLevelText", "LEVEL 2");
             fdirBox.appendChild(critLevelRow);
         }
 

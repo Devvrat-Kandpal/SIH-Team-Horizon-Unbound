@@ -1,8 +1,6 @@
 import asyncio
 import json
 import logging
-import math
-import random
 import sys
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
@@ -35,32 +33,43 @@ try:
     from Backend.criticality_config import CRITICALITY_CONFIG
     from Backend.cusum_drift import DriftDetector
     from Backend.database import get_recent_telemetry, insert_telemetry, log_event, telemetry_store
-    from Backend.isolation_forest import LinearRegressionDriftPredictor, MultivariateAnomalyDetector
-    from Backend.schemas import FaultInjectionRequest
-    from Backend.security import ALLOWED_ORIGINS, get_security_status, verify_operator_access, verify_websocket_auth
+    from Backend.isolation_forest import MultivariateAnomalyDetector
+    from Backend.module_b_forecaster import ModuleBForecaster
+    from Backend.module_b_forecaster import ModuleBForecaster as LinearRegressionDriftPredictor
     from Backend.physics_constants import (
-        IDDQ_DATASHEET_LIMIT_UA,
         IDDQ_LIVE_CLAMP_MAX_UA,
         IDDQ_LIVE_CLAMP_MIN_UA,
         burnin_hours_to_seconds,
+    )
+    from Backend.schemas import FaultInjectionRequest
+    from Backend.security import (
+        ALLOWED_ORIGINS,
+        DEMO_API_KEY,
+        get_security_status,
+        is_production_env,
+        verify_operator_access,
+        verify_websocket_auth,
     )
     from Backend.simulator import ComponentSimulator
 except ImportError:
     from cusum_drift import DriftDetector  # type: ignore[no-redef]
     from database import get_recent_telemetry, insert_telemetry, log_event, telemetry_store  # type: ignore[no-redef]
-    from isolation_forest import LinearRegressionDriftPredictor, MultivariateAnomalyDetector  # type: ignore[no-redef]
-    from schemas import FaultInjectionRequest  # type: ignore[no-redef]
-    from security import (  # type: ignore[no-redef]
-        ALLOWED_ORIGINS,
-        get_security_status,
-        verify_operator_access,
-        verify_websocket_auth,
-    )
+    from isolation_forest import MultivariateAnomalyDetector  # type: ignore[no-redef]
+    from module_b_forecaster import ModuleBForecaster  # type: ignore[no-redef]
+    from module_b_forecaster import ModuleBForecaster as LinearRegressionDriftPredictor  # type: ignore[no-redef]
     from physics_constants import (  # type: ignore[no-redef]
-        IDDQ_DATASHEET_LIMIT_UA,
         IDDQ_LIVE_CLAMP_MAX_UA,
         IDDQ_LIVE_CLAMP_MIN_UA,
         burnin_hours_to_seconds,
+    )
+    from schemas import FaultInjectionRequest  # type: ignore[no-redef]
+    from security import (  # type: ignore[no-redef]
+        ALLOWED_ORIGINS,
+        DEMO_API_KEY,
+        get_security_status,
+        is_production_env,
+        verify_operator_access,
+        verify_websocket_auth,
     )
     from simulator import ComponentSimulator  # type: ignore[no-redef]
 
@@ -71,7 +80,7 @@ except ImportError:
 # app lifespan. The explicit `None` sentinel is intentional (module load time); pyright is
 # told to ignore the false "None not assignable" / "None has no attribute" diagnostics.
 model: MultivariateAnomalyDetector = None  # type: ignore[assignment]
-drift_predictor: LinearRegressionDriftPredictor = None  # type: ignore[assignment]
+drift_predictor: ModuleBForecaster = None  # type: ignore[assignment]
 current_scenario = "nominal"
 burn_in_hours = 0
 
@@ -305,6 +314,21 @@ async def legacy_telemetry_history(limit: int = 100, fault_type: str | None = No
 async def system_events(limit: int = 50):
     """Return recent audit and system events from persistence."""
     return telemetry_store.recent_events(limit=max(1, min(limit, 200)))
+
+
+@app.get("/api/config")
+async def demo_config():
+    """Advertise the demo-auth transport contract (P0-02).
+
+    In non-production environments the demo operator credential is
+    included so the SIH demo frontend can authenticate. In production
+    no key is exposed (fail-closed: frontend must be configured via
+    window.ARJUNA_API_KEY injection).
+    """
+    body: dict = {"auth_header": "X-API-Key", "ws_query": "api_key"}
+    if not is_production_env():
+        body["demo_api_key"] = DEMO_API_KEY
+    return body
 
 
 def _set_requested_scenario(scenario: str) -> None:
@@ -577,6 +601,13 @@ async def websocket_endpoint(websocket: WebSocket):
     is_running = True
 
     # Task to listen for incoming client commands (e.g. scenario triggers)
+    # RBAC (P0-01): only operator/admin WebSocket roles may mutate the shared
+    # chamber (set_scenario/reset). viewer/qa_inspector frames are telemetry
+    # observers; their control frames are denied and acknowledged with an
+    # explicit error instead of mutating state.
+    ws_role = str((auth_ctx or {}).get("role", "viewer"))
+    ws_can_control = ws_role in ("operator", "admin")
+
     async def receive_commands():
         global _requested_scenario
         nonlocal is_running, current_scenario, burn_in_hours, sim_v, sim_c, sim_t, sim_iddq, sim_pd
@@ -587,27 +618,41 @@ async def websocket_endpoint(websocket: WebSocket):
                     payload = json.loads(data_text)
                     action = payload.get("action")
                     if action == "set_scenario":
-                        requested = payload.get("scenario", "nominal")
-                        if requested in VALID_SCENARIOS:
-                            current_scenario = requested
-                        logger.info("Scenario switched to %s", current_scenario)
+                        if not ws_can_control:
+                            logger.warning(
+                                "RBAC denied ws set_scenario role=%s", ws_role
+                            )
+                            await websocket.send_json(
+                                {"error": "forbidden", "detail": f"Role '{ws_role}' may not set_scenario"}
+                            )
+                        else:
+                            requested = payload.get("scenario", "nominal")
+                            if requested in VALID_SCENARIOS:
+                                current_scenario = requested
+                            logger.info("Scenario switched to %s", current_scenario)
                     elif action == "reset":
-                        current_scenario = "nominal"
-                        burn_in_hours = 0.0
-                        component_sim.reset()
-                        # Re-sync criticality from server global before reset — ensures
-                        # CUSUM threshold reflects any changes made via /api/set-criticality
-                        component_sim.criticality_level = _server_criticality_level
-                        cusum_detector.update_criticality(_server_criticality_level)
-                        cusum_detector.reset()
-                        if drift_predictor:
-                            drift_predictor.reset()
-                        sim_v = 5.0
-                        sim_c = 1.20
-                        sim_t = 125.0
-                        sim_iddq = 10.0
-                        sim_pd = 4.5
-                        logger.info("Chamber telemetry reset")
+                        if not ws_can_control:
+                            logger.warning("RBAC denied ws reset role=%s", ws_role)
+                            await websocket.send_json(
+                                {"error": "forbidden", "detail": f"Role '{ws_role}' may not reset"}
+                            )
+                        else:
+                            current_scenario = "nominal"
+                            burn_in_hours = 0.0
+                            component_sim.reset()
+                            # Re-sync criticality from server global before reset — ensures
+                            # CUSUM threshold reflects any changes made via /api/set-criticality
+                            component_sim.criticality_level = _server_criticality_level
+                            cusum_detector.update_criticality(_server_criticality_level)
+                            cusum_detector.reset()
+                            if drift_predictor:
+                                drift_predictor.reset()
+                            sim_v = 5.0
+                            sim_c = 1.20
+                            sim_t = 125.0
+                            sim_iddq = 10.0
+                            sim_pd = 4.5
+                            logger.info("Chamber telemetry reset")
                 except json.JSONDecodeError:
                     pass
         except (WebSocketDisconnect, RuntimeError, asyncio.CancelledError):

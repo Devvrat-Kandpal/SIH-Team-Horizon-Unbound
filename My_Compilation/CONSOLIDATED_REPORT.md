@@ -1,7 +1,16 @@
 # Project ARJUNA (SIH 26170) — Final Consolidated Forensic Audit Report
 
+> **Snapshot notice (post-audit remediation, 2026-09):** This report is a historical
+> forensic-audit snapshot that predates the P0-01/P0-04/P0-05/P0-06 remediations
+> applied afterward. It should NOT be used as the current security/coverage claim.
+> The authoritative, current verification is: **106 pytest tests pass** (including
+> `tests/test_websocket_rbac.py` — WebSocket RBAC, and `tests/test_supabase_rls.py` —
+> RLS/SECURITY DEFINER lockdown), mypy + ruff clean, production fails closed, and
+> Telemetry INSERT restricted to `service_role`. See `MASTER_MANUAL.md` addendum,
+> `LIMITATIONS.md`, and `RTM.md` for the current state.
+
 ## 1. Executive Summary
-- **Overall Status**: **Verified and Hardened**. The repository has undergone a strict top-to-bottom forensic audit spanning requirements, physical implementation, mathematical consistency, ML boundaries, API, and UI behavior.
+- **Overall Status**: **Verified and Hardened** (within the scope of the current automated/synthetic environment; real-hardware and live-Supabase validation remain UNVERIFIED — see `LIMITATIONS.md`).
 - **Major Improvements**: 
   - Eradicated label leakage in dataset generation (`simulator.py`) by deriving ground truth strictly from verifiable physical thresholds.
   - Documented quasi-static thermodynamic assumptions clearly, clarifying how integration timescale and component burn-in timescales interact without distortion.

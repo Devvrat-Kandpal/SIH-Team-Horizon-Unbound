@@ -1,6 +1,8 @@
 # ==============================================================================
 # PROJECT ARJUNA (SIH 26170): MULTI-STAGE DOCKERFILE
-# Production aerospace container conforming to ECSS-Q-ST-60-02C standards.
+# Containerized demonstration / prototype deployment environment.
+# (Not a "production aerospace container" — real-hardware and formal ECSS
+#  qualification remain out of scope for this prototype; see P2-01 / docs.)
 # ==============================================================================
 
 # Stage 1: Build stage for dependency resolution
@@ -21,8 +23,8 @@ RUN pip install --no-cache-dir --user -r requirements.txt
 FROM python:3.11-slim AS runner
 
 LABEL org.opencontainers.image.title="Project ARJUNA"
-LABEL org.opencontainers.image.description="AI-Driven Component Burn-In Telemetry & Screening for ISRO"
-LABEL org.opencontainers.image.version="2.1.0-ecss"
+LABEL org.opencontainers.image.description="AI-Driven Component Burn-In Telemetry & Screening for ISRO (prototype demo)"
+LABEL org.opencontainers.image.version="2.1.0-demo"
 
 WORKDIR /app
 
