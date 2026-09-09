@@ -5,8 +5,8 @@
 | **Project** | Project ARJUNA (SIH 26170) — AI-Driven Real-time Judicial Screening & Telemetry Analytics |
 | **Document ID** | ARJUNA-VAL-003 |
 | **Standard Reference** | ECSS-Q-ST-60-02C Space Product Assurance & NASA EEE-INST-002 Table 2A |
-| **Target Components** | [`Backend/server.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/Backend/server.py), [`Backend/schemas.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/Backend/schemas.py), [`Backend/database.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/Backend/database.py), [`Backend/simulator.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/Backend/simulator.py), [`Backend/security.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/Backend/security.py) |
-| **Production Entrypoint** | [`main.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/main.py) (`uvicorn.run("Backend.server:app")`) |
+| **Target Components** | [`Backend/server.py`](../Backend/server.py), [`Backend/schemas.py`](../Backend/schemas.py), [`Backend/database.py`](../Backend/database.py), [`Backend/simulator.py`](../Backend/simulator.py), [`Backend/security.py`](../Backend/security.py) |
+| **Production Entrypoint** | [`main.py`](../main.py) (`uvicorn.run("Backend.server:app")`) |
 | **Automated Test Suite** | 119 passing tests (`pytest tests/`) covering REST, WebSocket, RBAC, Multi-Client, Stress, and Schema validation |
 | **Classification** | Empirical Verification Report & Software Architecture Audit |
 | **Document Status** | **VERIFIED & HARDENED** (Derived from project code inspection and benchmark measurements) |
@@ -22,10 +22,10 @@ This report provides an engineering evaluation of three critical subsystem inter
 3. **WebSocket Real-Time Streaming & Resilience**: Measuring real-world inter-frame timing against the nominal 1.25 Hz (800 ms) streaming cadence, evaluating shared-chamber multi-client coherence, verifying role-based command filtering, and testing transport backpressure and memory bounds.
 
 ### Key Verified Results
-- **SQLite Bulk Export Throughput**: Achieves **25,286 rows/s** (1,000 rows) scaling to **93,715 rows/s** (20,000 rows) via `executemany` batch operations in [`Backend/simulator.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/Backend/simulator.py#L633-L678).
+- **SQLite Bulk Export Throughput**: Achieves **25,286 rows/s** (1,000 rows) scaling to **93,715 rows/s** (20,000 rows) via `executemany` batch operations in [`Backend/simulator.py`](../Backend/simulator.py#L633-L678).
 - **SQLite Live Ingestion Latency**: Single-row transactional inserts execute with a mean latency of **1.44 ms** (p50 = 1.43 ms, p95 = 1.75 ms) under WAL mode, well within any real-time telemetry budget.
 - **FastAPI In-Memory REST Latencies**: In-memory health, status, criticality, and lot statistics endpoints sustain sub-5ms latencies (**3.40 ms – 4.17 ms** mean).
-- **Asynchronous Loop Isolation**: All REST endpoints in [`Backend/server.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/Backend/server.py) are natively implemented as `async def`, and database I/O is decoupled via an asynchronous worker queue (`persistence_queue = asyncio.Queue`) executing on background threads (`asyncio.to_thread`).
+- **Asynchronous Loop Isolation**: All REST endpoints in [`Backend/server.py`](../Backend/server.py) are natively implemented as `async def`, and database I/O is decoupled via an asynchronous worker queue (`persistence_queue = asyncio.Queue`) executing on background threads (`asyncio.to_thread`).
 - **WebSocket Streaming Cadence**: Real-time telemetry streams at a nominal **1.25 Hz** (800 ms loop sleep), with an empirical inter-frame interval of ~**1,065 ms** accounting for physics calculation, multivariate isolation forest inference, and network serialization.
 - **Robust Multi-Client Coherence & RBAC**: The single-DUT shared chamber architecture synchronizes state across multiple concurrent clients without data corruption or race conditions, while enforcing strict RBAC (`viewer` cannot alter scenarios; `operator`/`admin` can).
 
@@ -53,9 +53,9 @@ flowchart TD
     SIM -.->|Offline Batch| SQL[("SQLite burn_in.db")]
 ```
 
-- **Application Module**: The FastAPI application is instantiated in [`Backend/server.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/Backend/server.py#L244) (`app = FastAPI(...)`), launched via root [`main.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/main.py). *(Prior claims referencing a non-existent `Backend/main.py` were incorrect).*
-- **Simulator Interface Completeness**: The compatibility wrappers `get_next_telemetry_frame()` and `reset_simulator()` are permanently implemented in [`Backend/simulator.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/Backend/simulator.py#L725-L735) and locked against regression by [`tests/test_simulator_columns.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/tests/test_simulator_columns.py#L57-L67). No external shims or adapters are required.
-- **Persistence Decoupling**: Production persistence relies on [`Backend/database.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/Backend/database.py) supporting Supabase PostgREST with an automatic, thread-safe in-memory rolling buffer (`_history` deque maxlen=2000, `_events` deque maxlen=500). SQLite functionality is dedicated to offline dataset generation and archival export.
+- **Application Module**: The FastAPI application is instantiated in [`Backend/server.py`](../Backend/server.py#L244) (`app = FastAPI(...)`), launched via root [`main.py`](../main.py). *(Prior claims referencing a non-existent `Backend/main.py` were incorrect).*
+- **Simulator Interface Completeness**: The compatibility wrappers `get_next_telemetry_frame()` and `reset_simulator()` are permanently implemented in [`Backend/simulator.py`](../Backend/simulator.py#L725-L735) and locked against regression by [`tests/test_simulator_columns.py`](../tests/test_simulator_columns.py#L57-L67). No external shims or adapters are required.
+- **Persistence Decoupling**: Production persistence relies on [`Backend/database.py`](../Backend/database.py) supporting Supabase PostgREST with an automatic, thread-safe in-memory rolling buffer (`_history` deque maxlen=2000, `_events` deque maxlen=500). SQLite functionality is dedicated to offline dataset generation and archival export.
 
 ---
 
@@ -114,11 +114,11 @@ Endpoints that alter simulation state (`/api/inject-fault`, `/api/set-criticalit
 > When Supabase cloud integration is active, audit logging performs remote PostgREST HTTP operations. If the persistence queue is configured with asynchronous background dispatch, response latency remains under 10 ms; under synchronous direct logging, latency reflects wide-area network latency (~250–400 ms).
 
 ### 4.3 Asynchronous Route Architecture
-- **Native Coroutines**: Every REST route in [`Backend/server.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/Backend/server.py#L261-L431) (`health_check`, `status_check`, `telemetry_history`, `system_events`, `demo_config`, `inject_fault`, `reset_system`, `get_lot_stats`, `get_criticality`, `set_criticality`) is defined using `async def`.
+- **Native Coroutines**: Every REST route in [`Backend/server.py`](../Backend/server.py#L261-L431) (`health_check`, `status_check`, `telemetry_history`, `system_events`, `demo_config`, `inject_fault`, `reset_system`, `get_lot_stats`, `get_criticality`, `set_criticality`) is defined using `async def`.
 - **Elimination of Worker Thread Starvation**: Route handlers execute directly on the asyncio event loop. No worker threads from Starlette's `anyio` thread-pool are consumed for read-only routes, ensuring scaling up to thousands of requests/sec limited only by CPU and TCP socket buffers.
 
 ### 4.4 Sliding-Window Rate Limiting & Access Control
-- **Rate Limiter Mechanism**: [`Backend/security.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/Backend/security.py#L145-L175) implements `SlidingWindowRateLimiter(max_requests=25, window_seconds=60.0)` applied to mutating control endpoints.
+- **Rate Limiter Mechanism**: [`Backend/security.py`](../Backend/security.py#L145-L175) implements `SlidingWindowRateLimiter(max_requests=25, window_seconds=60.0)` applied to mutating control endpoints.
 - **Protection**: Rapid bursts beyond 25 mutating requests within a 60-second window are rejected with `HTTP 429 Too Many Requests` and logged to the security audit trail (`AUDIT_SECURITY action=RATE_LIMIT_EXCEEDED`).
 - **RBAC Matrix**: Enforces 4 hierarchical roles (`viewer`, `qa_inspector`, `operator`, `admin`). Endpoints mutating hardware state or criticality strictly require `operator` or `admin` credentials via `X-API-Key` or `Authorization: Bearer` headers.
 
@@ -127,7 +127,7 @@ Endpoints that alter simulation state (`/api/inject-fault`, `/api/set-criticalit
 ## 5. Real-Time WebSocket Streaming & Resilience Under Load
 
 ### 5.1 Nominal Streaming Cadence & Timing Budget
-The WebSocket telemetry loop in [`Backend/server.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/Backend/server.py#L676-L873) executes at an intentional nominal pacing:
+The WebSocket telemetry loop in [`Backend/server.py`](../Backend/server.py#L676-L873) executes at an intentional nominal pacing:
 
 $$\Delta t_{\text{nominal}} = 0.8\text{ s} \implies f_{\text{nominal}} = 1.25\text{ Hz}$$
 
@@ -157,19 +157,19 @@ Each tick simulates **0.4 virtual burn-in hours** (`HOURS_PER_TICK = 0.4`), allo
 Project ARJUNA deliberately models a **single-DUT virtual burn-in chamber**:
 - **Design Principle**: All connected WebSocket clients observe the identical chamber state (`current_scenario`, `burn_in_hours`, `_server_criticality_level`).
 - **Coherence Propagation**: When Client A initiates a scenario transition or reset, the state is registered globally via `_rest_control_generation` and immediately reflected on Client B within the next frame.
-- **Verification**: Verified by [`tests/test_multi_client_interference.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/tests/test_multi_client_interference.py) and [`tests/test_stress.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/tests/test_stress.py). Zero torn frames or race conditions occur across concurrent sessions.
+- **Verification**: Verified by [`tests/test_multi_client_interference.py`](../tests/test_multi_client_interference.py) and [`tests/test_stress.py`](../tests/test_stress.py). Zero torn frames or race conditions occur across concurrent sessions.
 
 ### 5.3 WebSocket RBAC Enforcement
 WebSocket connections require token authentication during the initial handshake (`/ws?api_key=...` or `/ws/telemetry?token=...`). Unauthorized connections are rejected with WebSocket close code **1008 (Policy Violation)**.
 - Mutating actions sent over WebSocket text frames (`{"action": "set_scenario"}` or `{"action": "reset"}`) are gated by role verification:
   - `viewer` and `qa_inspector`: Actions are denied (`{"error": "forbidden"}`), chamber state is preserved.
   - `operator` and `admin`: Actions are accepted and propagated across all connected dashboards.
-- Fully verified by [`tests/test_websocket_rbac.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/tests/test_websocket_rbac.py).
+- Fully verified by [`tests/test_websocket_rbac.py`](../tests/test_websocket_rbac.py).
 
 ### 5.4 Connection Churn, Memory Bounds & Backpressure
 - **Connection Churn**: Rapid back-to-back connection and disconnection cycles execute cleanly without leaking asyncio tasks or file descriptors. Upon client disconnect, `receiver_task.cancel()` cleans up background tasks and `manager.disconnect()` deregisters the socket.
 - **Backpressure Handling**: If a slow-reader client halts consumption, Starlette's `websocket.send_json()` awaits OS socket buffer availability. The per-connection loop suspends naturally without unconstrained heap memory accumulation.
-- **Memory Stability**: Verified across 2,000 continuous ticks in [`tests/test_stress.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/tests/test_stress.py); in-memory deques remain rigidly bounded at their configured limits (500 records) without monotonic RSS drift.
+- **Memory Stability**: Verified across 2,000 continuous ticks in [`tests/test_stress.py`](../tests/test_stress.py); in-memory deques remain rigidly bounded at their configured limits (500 records) without monotonic RSS drift.
 
 ---
 
@@ -202,7 +202,7 @@ class FaultInjectionRequest(BaseModel):
 
 > [!IMPORTANT]
 > **Resolution of Previous Dead-Code Claim**:
-> An earlier analysis asserted that `event_type` was typed as `Literal[...]`, rendering case-normalization unreachable. Inspection of [`Backend/schemas.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/Backend/schemas.py#L184-L208) confirms that fields are typed as `str | None` and processed by `clean_type_str`. Casing normalization (`"thermal_drift"` $\to$ `"THERMAL_DRIFT"`) is fully active and validated by [`tests/test_api.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/tests/test_api.py#L110).
+> An earlier analysis asserted that `event_type` was typed as `Literal[...]`, rendering case-normalization unreachable. Inspection of [`Backend/schemas.py`](../Backend/schemas.py#L184-L208) confirms that fields are typed as `str | None` and processed by `clean_type_str`. Casing normalization (`"thermal_drift"` $\to$ `"THERMAL_DRIFT"`) is fully active and validated by [`tests/test_api.py`](../tests/test_api.py#L110).
 
 ### 6.2 Strict Criticality Validation
 The endpoint `/api/set-criticality` enforces strict integer validation:
@@ -222,15 +222,15 @@ Every WebSocket frame emits a `StructuredEvidence` payload containing:
 
 | Subsystem Requirement | Prior / Unverified Claim | Project-Verified Reality | Authoritative Code / Test Reference |
 |---|---|---|---|
-| **Server Entrypoint** | `Backend/main.py` | `Backend/server.py` invoked via root `main.py` | [`main.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/main.py#L46), [`Backend/server.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/Backend/server.py#L244) |
-| **Telemetry Wrappers** | Claimed missing; required external test fixture | Fully implemented and permanently committed in repository | [`Backend/simulator.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/Backend/simulator.py#L725-L735), [`tests/test_simulator_columns.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/tests/test_simulator_columns.py#L57) |
-| **SQLite Export Function** | Claimed missing from `Backend/simulator.py` | Fully implemented as `export_to_sqlite()` | [`Backend/simulator.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/Backend/simulator.py#L633), [`tests/test_simulator_columns.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/tests/test_simulator_columns.py#L98) |
-| **REST Handler Typing** | Claimed sync `def` causing thread-pool starvation | Natively implemented as `async def` on asyncio event loop | [`Backend/server.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/Backend/server.py#L261-L431) |
-| **Database Offloading** | Recommended adding `asyncio.to_thread` | Already implemented via `persistence_queue` + `asyncio.to_thread` worker | [`Backend/server.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/Backend/server.py#L119-L131) |
-| **WebSocket Cadence** | Claimed 10 FPS (100 ms) target with 5% overshoot | Intentionally designed at 1.25 Hz (800 ms sleep; 0.4 h/tick) | [`Backend/server.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/Backend/server.py#L714), [`Backend/server.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/Backend/server.py#L872) |
-| **Input Case Normalizer** | Claimed dead code blocked by Pydantic `Literal` | Active and functional (`event_type: str | None` + validator) | [`Backend/schemas.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/Backend/schemas.py#L184-L208), [`tests/test_api.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/tests/test_api.py#L110) |
-| **Multi-Client Semantics** | Evaluated as isolated independent sessions | Single-DUT shared virtual chamber by deliberate design | [`Backend/server.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/Backend/server.py#L87-L93), [`tests/test_multi_client_interference.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/tests/test_multi_client_interference.py#L6-L19) |
-| **WebSocket RBAC** | Unmentioned in earlier report | Enforced via handshake auth and message-level role checks | [`Backend/security.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/Backend/security.py#L292-L350), [`tests/test_websocket_rbac.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/tests/test_websocket_rbac.py) |
+| **Server Entrypoint** | `Backend/main.py` | `Backend/server.py` invoked via root `main.py` | [`main.py`](../main.py#L46), [`Backend/server.py`](../Backend/server.py#L244) |
+| **Telemetry Wrappers** | Claimed missing; required external test fixture | Fully implemented and permanently committed in repository | [`Backend/simulator.py`](../Backend/simulator.py#L725-L735), [`tests/test_simulator_columns.py`](../tests/test_simulator_columns.py#L57) |
+| **SQLite Export Function** | Claimed missing from `Backend/simulator.py` | Fully implemented as `export_to_sqlite()` | [`Backend/simulator.py`](../Backend/simulator.py#L633), [`tests/test_simulator_columns.py`](../tests/test_simulator_columns.py#L98) |
+| **REST Handler Typing** | Claimed sync `def` causing thread-pool starvation | Natively implemented as `async def` on asyncio event loop | [`Backend/server.py`](../Backend/server.py#L261-L431) |
+| **Database Offloading** | Recommended adding `asyncio.to_thread` | Already implemented via `persistence_queue` + `asyncio.to_thread` worker | [`Backend/server.py`](../Backend/server.py#L119-L131) |
+| **WebSocket Cadence** | Claimed 10 FPS (100 ms) target with 5% overshoot | Intentionally designed at 1.25 Hz (800 ms sleep; 0.4 h/tick) | [`Backend/server.py`](../Backend/server.py#L714), [`Backend/server.py`](../Backend/server.py#L872) |
+| **Input Case Normalizer** | Claimed dead code blocked by Pydantic `Literal` | Active and functional (`event_type: str | None` + validator) | [`Backend/schemas.py`](../Backend/schemas.py#L184-L208), [`tests/test_api.py`](../tests/test_api.py#L110) |
+| **Multi-Client Semantics** | Evaluated as isolated independent sessions | Single-DUT shared virtual chamber by deliberate design | [`Backend/server.py`](../Backend/server.py#L87-L93), [`tests/test_multi_client_interference.py`](../tests/test_multi_client_interference.py#L6-L19) |
+| **WebSocket RBAC** | Unmentioned in earlier report | Enforced via handshake auth and message-level role checks | [`Backend/security.py`](../Backend/security.py#L292-L350), [`tests/test_websocket_rbac.py`](../tests/test_websocket_rbac.py) |
 | **Test Suite Pass Rate** | Partial / failing legacy references cited | **119 of 119 tests passing** across entire test suite | `pytest tests/` (100% pass rate) |
 
 ---

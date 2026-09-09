@@ -18,7 +18,8 @@ graph TD
     end
 
     subgraph "Intelligent Multi-Model Inference Layer"
-        IF["Backend/isolation_forest.py<br/>Multivariate Isolation Forest (Mod A)<br/>OLS 168h Drift Extrapolator (Mod B)"]
+        IF["Backend/isolation_forest.py<br/>Multivariate Isolation Forest (Mod A)"]
+        MB["Backend/module_b_forecaster.py<br/>Dual-Mode Arrhenius OLS/RANSAC Extrapolator (Mod B)"]
         CU["Backend/cusum_drift.py<br/>Tabular CUSUM Drift Filter (Mod C)"]
         CRIT["Backend/criticality_config.py<br/>Mission Criticality Tiers (L1, L2, L3)"]
     end
@@ -37,8 +38,10 @@ graph TD
 
     PHY --> SRV
     IF --> SRV
+    MB --> SRV
     CU --> SRV
     CRIT --> IF
+    CRIT --> MB
     CRIT --> CU
     SCH --> SRV
     SEC --> SRV
@@ -60,7 +63,8 @@ graph TD
   A component is flagged if the raw Isolation Forest tree path length indicates an outlier ($raw\_score < 0$) OR if the dynamic lot deviation exceeds $+7.0\sigma$ ($Z_{IDDQ} \ge 7.0$).
 - **The 45 µA Anomaly**: A standby current of $45.2\ \mu\text{A}$ produces $Z_{IDDQ} = \frac{45.2 - 10.0}{1.17} = +\mathbf{30.08\sigma}$. Even though $45.2\ \mu\text{A} < 50\ \mu\text{A}$ static datasheet limit, ARJUNA classifies it as an extreme statistical outlier.
 
-### 2.2 Module B: 168h Latent Drift Predictor (OLS Extrapolation)
+### 2.2 Module B: 168h Latent Drift Predictor (`Backend/module_b_forecaster.py`)
+- **Dual-Mode Engine**: Implements Arrhenius temperature-scaled physics extrapolation alongside robust RANSAC / linear regression with dynamic sample windowing.
 - **Slope Calculation**:
   $$\beta = \frac{I_{DDQ}(t_2) - I_{DDQ}(t_1)}{t_2 - t_1}$$
   Where $t_1, t_2$ represent accrued virtual burn-in hours.
@@ -128,7 +132,7 @@ graph TD
 
 ## 4. Supabase Database Schema & Resilience
 
-The production SQL schema is defined in [`migrations/supabase_schema.sql`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/migrations/supabase_schema.sql):
+The production SQL schema is defined in [`migrations/supabase_schema.sql`](../migrations/supabase_schema.sql):
 - **`telemetry_logs`**: High-frequency burn-in measurements with B-Tree indexes on `timestamp DESC`, `fault_type`, and `criticality_level`.
 - **`system_events`**: Audit trail of operator injections, resets, and criticality adjustments.
 - **Row-Level Security (RLS)**: Enforces public SELECT queries for judging dashboards and authorized INSERT queries for the streaming backend.

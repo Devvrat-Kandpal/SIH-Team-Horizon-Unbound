@@ -774,9 +774,11 @@ async def websocket_endpoint(websocket: WebSocket):
                 criticality_level=active_criticality,
             )
 
-            # 3. RUN MEMBER 3's MODULE B: LATENT DRIFT PREDICTOR
-            # Pass real burn_in_hours (0–168) as the time axis — physically meaningful
-            drift_result = drift_predictor.update(burn_in_hours, sim_iddq)
+            # 3. RUN MODULE B: LATENT DRIFT PREDICTOR
+            # Pass real burn_in_hours (0–168) and live temperature sim_t
+            drift_result = drift_predictor.update(
+                burn_in_hours, sim_iddq, temperature=sim_t
+            )
 
             # 4. RUN MEMBER 4's CUSUM TIME-SERIES DRIFT DETECTOR
             cusum_alert = cusum_detector.evaluate_drift(sim_iddq)

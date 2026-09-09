@@ -8,6 +8,7 @@ __pycache__/
 *.sqlite
 Backend/app_state_backup.json
 *.csv
-archive/
+/archive/
+!/docs/archive/
 .ruff_cache/
 .mypy_cache/

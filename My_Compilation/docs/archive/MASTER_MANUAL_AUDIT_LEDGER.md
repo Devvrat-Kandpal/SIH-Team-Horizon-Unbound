@@ -1,8 +1,12 @@
-# PROJECT ARJUNA — MASTER PRESENTATION MANUAL v3
-**SIH 26170 | Code-grounded source of truth | Status: ACCEPTED WITH LIMITATIONS**
+# PROJECT ARJUNA — FORENSIC AUDIT & CLAIMS LEDGER (HISTORICAL)
+**SIH 26170 | Phase 0 Baseline Audit | Status: HISTORICAL REFERENCE ARTIFACT**
+
+> [!NOTE]
+> **HISTORICAL AUDIT ARTIFACT**: This document preserves the Phase 0 forensic claim ledger, evidence matrix, and baseline contradiction register.
+> For the active master presentation manual, spoken demo scripts, and team Q&A battle bank, refer to the canonical [docs/MASTER_MANUAL.md](../MASTER_MANUAL.md).
 
 > Evidence outranks wording. Current implementation outranks documentation.
-> No statement stronger than its evidence. No commits made by this audit.
+> No statement stronger than its evidence.
 
 ## 0. PRE-AUDIT BASELINE (PHASE 0)
 - HEAD: `c153716` (main). Working tree DIRTY (pre-existing, not caused by this audit):

@@ -5,7 +5,7 @@
 [![Physics-informed: MIL-STD-883 conventions](https://img.shields.io/badge/Physics--informed-MIL--STD--883%20Method%201015%20(conventions)-orange.svg)]()
 [![Criticality: NASA EEE-INST-002-style tiers](https://img.shields.io/badge/Criticality-NASA%20EEE--INST--002--style%20tiers-red.svg)]()
 [![Defect Recall: 100% (synthetic domain)](https://img.shields.io/badge/Defect%20Recall-100.00%25%20(synthetic%20domain)-brightgreen.svg)]()
-[![Test Suite: 119/119 Passed](https://img.shields.io/badge/Automated%20Tests-119%2F119%20Passed-success.svg)]()
+[![Test Suite: 122/122 Passed](https://img.shields.io/badge/Automated%20Tests-122%2F122%20Passed-success.svg)]()
 
 ---
 
@@ -73,22 +73,22 @@ graph TD
 
 | SIH Requirement | Technical Specification | Source Implementation | Test Proof | Status |
 |---|---|---|---|---|
-| **Dynamic Outlier Detection** | Catch 45.2 µA outlier in 10 µA lot ($\Delta\sigma = +30.1\sigma$) under 50 µA static limit | [`Backend/isolation_forest.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/Backend/isolation_forest.py) | [`tests/test_ablation.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/tests/test_ablation.py) | **AUTOMATED TESTS PASS (synthetic)** |
-| **168h Latent Drift Forecast** | OLS regression predicting 168h endpoint from early (< 24h) data | [`Backend/isolation_forest.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/Backend/isolation_forest.py) | [`tests/test_unit.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/tests/test_unit.py)<br/>HONEST MAE = **25.06 µA** vs real trajectory (legacy circular MAE 0.567 µA) | **IMPLEMENTED / BENCHMARKED** |
-| **Early Rejection** | Dynamic safety slope thresholding | [`Backend/isolation_forest.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/Backend/isolation_forest.py) | Lead-time figure derived from the legacy circular benchmark; see honest MAE above | **IMPLEMENTED** |
-| **Latent Creep Filter** | Tabular CUSUM $S_n^+ = \max(0, S_{n-1}^+ + X_n - (\mu + k))$ | [`Backend/cusum_drift.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/Backend/cusum_drift.py) | 0 false alarms on 1,000 cycles | **SIMULATION VERIFIED** |
-| **Mission Criticality** | Monotonic thresholds across Levels 1, 2, and 3 | [`Backend/criticality_config.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/Backend/criticality_config.py) | [`tests/test_criticality.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/tests/test_criticality.py) | **AUTOMATED TESTS PASS** |
-| **Explainable AI (XAI)** | Machine-readable evidence with parameter offsets and QA action | [`Backend/schemas.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/Backend/schemas.py) | [`tests/test_websocket.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/tests/test_websocket.py) | **AUTOMATED TESTS PASS** |
-| **Aerospace API Security** | API keys, 4-tier RBAC, rate limiter, WS token check | [`Backend/security.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/Backend/security.py) | [`tests/test_security.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/tests/test_security.py) | **AUTOMATED TESTS PASS (incl. adversarial RBAC)** |
-| **Cloud Persistence** | Supabase PostgreSQL schema, RLS, offline async buffer | [`Backend/database.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/Backend/database.py) | [`tests/test_supabase.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/tests/test_supabase.py) | **LOCAL INTEGRATION VERIFIED (live Supabase UNVERIFIED)** |
+| **Dynamic Outlier Detection** | Catch 45.2 µA outlier in 10 µA lot ($\Delta\sigma = +30.1\sigma$) under 50 µA static limit | [`Backend/isolation_forest.py`](Backend/isolation_forest.py) | [`tests/test_ablation.py`](tests/test_ablation.py) | **AUTOMATED TESTS PASS (synthetic)** |
+| **168h Latent Drift Forecast** | OLS regression predicting 168h endpoint from early (< 24h) data | [`Backend/module_b_forecaster.py`](Backend/module_b_forecaster.py)<br/>*(compat alias in [`Backend/isolation_forest.py`](Backend/isolation_forest.py))* | [`tests/test_module_b.py`](tests/test_module_b.py)<br/>[`tests/test_module_b_live_integration.py`](tests/test_module_b_live_integration.py)<br/>[`tests/test_unit.py`](tests/test_unit.py)<br/>HONEST MAE = **25.06 µA** vs real trajectory (legacy circular MAE 0.567 µA; canonical multi-regime **11.37 µA**) | **IMPLEMENTED / BENCHMARKED** |
+| **Early Rejection** | Dynamic safety slope thresholding | [`Backend/module_b_forecaster.py`](Backend/module_b_forecaster.py) | Lead-time figure derived from the legacy circular benchmark; see honest MAE above | **IMPLEMENTED** |
+| **Latent Creep Filter** | Tabular CUSUM $S_n^+ = \max(0, S_{n-1}^+ + X_n - (\mu + k))$ | [`Backend/cusum_drift.py`](Backend/cusum_drift.py) | 0 false alarms on 1,000 cycles | **SIMULATION VERIFIED** |
+| **Mission Criticality** | Monotonic thresholds across Levels 1, 2, and 3 | [`Backend/criticality_config.py`](Backend/criticality_config.py) | [`tests/test_criticality.py`](tests/test_criticality.py) | **AUTOMATED TESTS PASS** |
+| **Explainable AI (XAI)** | Machine-readable evidence with parameter offsets and QA action | [`Backend/schemas.py`](Backend/schemas.py) | [`tests/test_websocket.py`](tests/test_websocket.py) | **AUTOMATED TESTS PASS** |
+| **Aerospace API Security** | API keys, 4-tier RBAC, rate limiter, WS token check | [`Backend/security.py`](Backend/security.py) | [`tests/test_security.py`](tests/test_security.py) | **AUTOMATED TESTS PASS (incl. adversarial RBAC)** |
+| **Cloud Persistence** | Supabase PostgreSQL schema, RLS, offline async buffer | [`Backend/database.py`](Backend/database.py) | [`tests/test_supabase.py`](tests/test_supabase.py)<br/>[`tests/test_supabase_rls.py`](tests/test_supabase_rls.py) | **VERIFIED (Live RLS tested on 2026-09-09, see [`reports/rls_live_verification.md`](reports/rls_live_verification.md); re-verify for production credentials)** |
 
-*(For the complete line-by-line requirement traceability matrix, see [`docs/RTM.md`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/docs/RTM.md)).*
+*(For the complete line-by-line requirement traceability matrix, see [`docs/RTM.md`](docs/RTM.md)).*
 
 ---
 
 ## 4. Empirical Quantitative Benchmark Results
 
-Evaluated across **7,500 unseen randomized operational vectors** in [`evaluate_model.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/evaluate_model.py):
+Evaluated across **7,500 unseen randomized operational vectors** in [`evaluate_model.py`](evaluate_model.py):
 
 | Metric | Target | Measured Result | Status |
 |---|---|---|---|
@@ -104,7 +104,7 @@ Evaluated across **7,500 unseen randomized operational vectors** in [`evaluate_m
 
 **Per-segment honesty breakdown** (post label-bias ground truth — no `sim_step >= 20`
 structural labels; see `unseen_fault_benchmark.segment_metrics` in
-[`reports/evaluation_report.json`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/reports/evaluation_report.json)):
+[`reports/evaluation_report.json`](reports/evaluation_report.json)):
 
 | Segment | Recall | Note |
 |---|---|---|
@@ -140,11 +140,11 @@ structural labels; see `unseen_fault_benchmark.segment_metrics` in
 > not physical forecast accuracy. Scoring Module B against the **real coupled physics trajectory**
 > (`Model/sample_data_168h.csv`, reproducible via `ARJUNA_REGEN_GT=1 python evaluate_model.py`)
 > yields a **non-circular MAE of 25.06 µA / RMSE 30.14 µA** (systematic under-prediction of the
-> super-linear, 150 µA-clamped curve). The [`OOD benchmark`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/evaluate_model.py)
+> super-linear, 150 µA-clamped curve). The [`OOD benchmark`](evaluate_model.py)
 > (`benchmark_ood_generalization`) testifies honestly: OLS MAE rises to 1.4–9.4 µA under
 > non-linear degradation regimes, while Module C CUSUM (no linearity assumption) retains
 > high detection of persistent creep — bounding the generalization boundary with measured
-> data rather than asserting it. See [`reports/ablation_study.md`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/reports/ablation_study.md)
+> data rather than asserting it. See [`reports/ablation_study.md`](reports/ablation_study.md)
 > §2a and §5–§6 for the honest drift-forecast, OOD, and threshold-sensitivity tables.
 
 > ### Module B — Scope of Validity (authoritative wording; see docs/SCIENTIFIC_LIMITATIONS.md SL-8)
@@ -187,12 +187,16 @@ python main.py
 http://127.0.0.1:8000
 ```
 
-### 6.2 Run Automated Test Suite (119 Tests across 18 Suites)
+### 6.2 Run Automated Test Suite (122 Tests across 19 Suites)
 ```bash
+# Ensure pinned environment dependencies are installed:
+pip install -r requirements.txt
+
+# Run complete automated verification:
 pytest tests/ -v
 ```
-> Suite covers unit physics, API/WebSocket contracts, security/RBAC, Supabase persistence,
-> criticality semantics, OOD generalization, and adversarial/malformed telemetry robustness.
+> Suite covers unit physics, API/WebSocket contracts, security/RBAC, Supabase persistence/RLS,
+> criticality semantics, OOD generalization, Module B live temperature integration, and adversarial/malformed telemetry robustness.
 
 ### 6.3 Run Quantitative Evaluation Benchmark
 ```bash
@@ -209,7 +213,7 @@ docker compose up --build
 ## 7. Connecting Your Supabase Project
 
 1. Open your [Supabase Dashboard](https://supabase.com/dashboard).
-2. Go to **SQL Editor** (`>_`), paste the script from [`migrations/supabase_schema.sql`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/migrations/supabase_schema.sql), and click **Run**.
+2. Go to **SQL Editor** (`>_`), paste the script from [`migrations/supabase_schema.sql`](migrations/supabase_schema.sql), and click **Run**.
 3. In your local `.env` file (git-ignored), add your credentials:
    ```env
    SUPABASE_ENABLED=true
@@ -221,13 +225,13 @@ docker compose up --build
 ---
 
 ## 8. Documentation Suite
-All engineering manuals, validation reports, and specification documents are centralized in the [`docs/`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/docs) directory:
+All engineering manuals, validation reports, and specification documents are centralized in the [`docs/`](docs) directory:
 
-- [`docs/RTM.md`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/docs/RTM.md): Full Requirement Traceability Matrix (NASA EEE-INST-002 / ECSS).
-- [`docs/TECHNICAL_MANUAL.md`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/docs/TECHNICAL_MANUAL.md): Complete engineering architecture & API reference.
-- [`docs/CALIBRATION_REPORT.md`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/docs/CALIBRATION_REPORT.md): Physics semiconductor validation per MIL-STD-883.
-- [`docs/SQLite_FastAPI_WebSocket_Validation.md`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/docs/SQLite_FastAPI_WebSocket_Validation.md): Empirical validation report for persistence, REST latency, and WebSocket streaming.
-- [`docs/CONSOLIDATED_REPORT.md`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/docs/CONSOLIDATED_REPORT.md): Forensic audit and subsystem cross-verification report.
-- [`docs/LIMITATIONS.md`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/docs/LIMITATIONS.md) & [`docs/SCIENTIFIC_LIMITATIONS.md`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/docs/SCIENTIFIC_LIMITATIONS.md): Operational, scientific, and empirical boundary disclosures.
-- [`docs/SECURITY_REMEDIATION.md`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/docs/SECURITY_REMEDIATION.md): Hardening log (RBAC, fail-closed guards, RLS lockdown).
-- [`docs/MASTER_MANUAL.md`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/docs/MASTER_MANUAL.md): Master technical and operational manual.
+- [`docs/RTM.md`](docs/RTM.md): Full Requirement Traceability Matrix (NASA EEE-INST-002 / ECSS).
+- [`docs/TECHNICAL_MANUAL.md`](docs/TECHNICAL_MANUAL.md): Complete engineering architecture & API reference.
+- [`docs/CALIBRATION_REPORT.md`](docs/CALIBRATION_REPORT.md): Physics semiconductor validation per MIL-STD-883.
+- [`docs/SQLite_FastAPI_WebSocket_Validation.md`](docs/SQLite_FastAPI_WebSocket_Validation.md): Empirical validation report for persistence, REST latency, and WebSocket streaming.
+- [`docs/CONSOLIDATED_REPORT.md`](docs/CONSOLIDATED_REPORT.md): Forensic audit and subsystem cross-verification report.
+- [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md) & [`docs/SCIENTIFIC_LIMITATIONS.md`](docs/SCIENTIFIC_LIMITATIONS.md): Operational, scientific, and empirical boundary disclosures.
+- [`docs/SECURITY_REMEDIATION.md`](docs/SECURITY_REMEDIATION.md): Hardening log (RBAC, fail-closed guards, RLS lockdown).
+- [`docs/MASTER_MANUAL.md`](docs/MASTER_MANUAL.md): Master technical and operational manual.

@@ -72,7 +72,7 @@ Each item lists its root cause and the concrete path to resolution.
 | T2 Linting (ruff) | **VERIFIED · clean** | `ruff check Backend/ tests/` passes (0 issues). |
 | T3 Docker build & run | **NOT VERIFIED (env-limited)** | Docker CLI 29.5.3 is present but the Docker daemon is not running in this environment, so no image was built here. The Dockerfile was hardened and a CI `docker-build` job (per P1-12) will build + smoke-test it on a runner with a running daemon. |
 | T4 / F1 / F2 Browser visual regression | **UNVERIFIED · no browser automation available** | All chart/alert values are code-traced from backend payloads to DOM writes; rendering itself not screenshot-verified. |
-| T5 / T6 Live Supabase / RLS | **UNVERIFIED · no live credentials / no live Postgres** | Static RLS/function lockdown is regression-tested (`tests/test_supabase_rls.py`); live enforcement must be re-verified against a real project. |
+| T5 / T6 Live Supabase / RLS | **VERIFIED (live test project, 2026-09-09)** | Live RLS policy enforcement and unauthorized mutation rejection verified on live test Supabase project (see [`reports/rls_live_verification.md`](../reports/rls_live_verification.md)); static lockdown regression-tested (`tests/test_supabase_rls.py`). Production deployment must re-verify against target credentials. |
 | T7 Long-duration stress | **PARTIALLY VERIFIED** | 2,000-tick sustained run + 3 concurrent WS clients + repeated resets pass (`tests/test_stress.py`); multi-hour soak not run. |
 | S5 Persistence failure visibility | **VERIFIED** | Non-2xx/transport failures set `last_error` + throttled WARNING; regression-tested. |
 

@@ -549,7 +549,7 @@ CREATE POLICY "Allow ingestion into telemetry"
 -- (mirror policies exist for system_events)
 ```
 The public read policy enables judge dashboards and history queries; `INSERT` is restricted to `authenticated` / `service_role`, so an anon client holding only the project URL + anon key cannot inject fake telemetry rows or delete historical test logs. The FastAPI backend inserts using the `service_role` key from environment variables. 
-**Honest disclosure (matches `LIMITATIONS.md` T5/T6):** live Supabase/RLS behavior is *UNVERIFIED against a live project* (no live credentials in this repo); a runbook and verifier script exist (`scripts/check_supabase_rls.py`). Say "RLS policies are defined in our migration script" — do not claim live-verified RLS.
+**Honest disclosure (matches `LIMITATIONS.md` T5/T6):** Live RLS policy enforcement was verified against our test project (see `reports/rls_live_verification.md` & `scripts/check_supabase_rls.py`); production deployments must re-verify against target credentials.
 
 ---
 
@@ -557,7 +557,7 @@ The public read policy enables judge dashboards and history queries; `INSERT` is
 
 **Presentation Slots**: `Minute 0:00 – 0:30` (Opening Pitch) & `Minute 4:10 – 5:00` (Closing Pitch) 
 **Primary Stage Responsibility**: Opens the presentation, closes with empirical benchmark proof, and commands all test/benchmark Q&A. 
-**Domain Ownership**: `evaluate_model.py`, `tests/` (all 18 suites), benchmark metrics, confusion matrix, adversarial telemetry, standards compliance, honest limitation disclosures.
+**Domain Ownership**: `evaluate_model.py`, `tests/` (all 19 suites), benchmark metrics, confusion matrix, adversarial telemetry, standards compliance, honest limitation disclosures.
 
 ---
 
@@ -580,7 +580,7 @@ The public read policy enables judge dashboards and history queries; `INSERT` is
  > - **F1-Score**: 0.9648 | **ROC-AUC**: 0.9985. 
  > - **168-Hour Drift Forecast Error**: Honest MAE of 25.06 µA against the true coupled Arrhenius trajectory with 150 µA clamp. 
  > - **Inference Latency**: ~2.4 ms per tick (p99 run-dependent; see report). 
- > Project ARJUNA is rigorously verified with **119 passing automated tests** across 18 distinct test suites covering unit math, API validation, WebSockets, RBAC, Supabase persistence/RLS, NASA criticality, out-of-distribution drift, adversarial telemetry, Module B forecasting, multi-client chamber coherence, and serialized-model reproducibility. 
+ > Project ARJUNA is rigorously verified with **122 passing automated tests** across 19 distinct test suites covering unit math, API validation, WebSockets, RBAC, Supabase persistence/RLS, NASA criticality, out-of-distribution drift, adversarial telemetry, Module B live forecasting and integration, multi-client chamber coherence, and serialized-model reproducibility. 
  > Thank you, and we are ready for your technical questions."*
 
 ---
@@ -603,9 +603,9 @@ The public read policy enables judge dashboards and history queries; `INSERT` is
 
 ### 6.C CORE TECHNICAL Q&A (M6)
 
-#### Q6.1: What is the exact composition of your 119 automated tests?
+#### Q6.1: What is the exact composition of your 122 automated tests?
 **Answer**: 
-`pytest tests/ -q` passes all 119 tests across 18 suites:
+`pytest tests/ -q` passes all 122 tests across 19 suites:
 1. `tests/test_ablation.py` (2 tests): multi-model synergy and ablation proof.
 2. `tests/test_adversarial_telemetry.py` (22 tests): fail-safe quarantine against corrupted data (`NaN`, `Inf`, out-of-rail voltages, missing keys).
 3. `tests/test_api.py` (7 tests): FastAPI REST endpoints and Pydantic payload validation schemas.
@@ -613,17 +613,18 @@ The public read policy enables judge dashboards and history queries; `INSERT` is
 5. `tests/test_criticality_consistency.py` (3 tests): cross-module threshold coherence.
 6. `tests/test_model_compat.py` (5 tests): serialized-model scikit-learn reproducibility — version-pinned inference, no version-mismatch warning, artifact structure & feature count.
 7. `tests/test_module_b.py` (10 tests): Module B 168h OLS drift predictor physics-to-linear boundary, time-ordering, bounds, and Arrhenius chain validation.
-8. `tests/test_multi_client_interference.py` (3 tests): single-DUT shared chamber coherence across concurrent WebSocket observers.
-9. `tests/test_ood.py` (4 tests): out-of-distribution drift regimes (power-law, exponential, logarithmic, piecewise).
-10. `tests/test_security.py` (12 tests): API keys, 4-tier RBAC permissions, sliding-window rate limiters, and fail-closed production modes.
-11. `tests/test_security_adversarial.py` (9 tests): adversarial remote host spoofing, fail-closed production envs, and full REST RBAC matrix.
-12. `tests/test_simulator_columns.py` (6 tests): telemetry column parity and units.
-13. `tests/test_stress.py` (3 tests): sustained run memory bounds, FIFO deque bounds, and state coherence.
-14. `tests/test_supabase.py` (7 tests): cloud PostgreSQL persistence, RLS, and offline deque fallback.
-15. `tests/test_supabase_rls.py` (4 tests): RLS policies and locked-down SECURITY DEFINER functions.
-16. `tests/test_unit.py` (6 tests): mathematical verification of Isolation Forest, CUSUM auto-baseline, Arrhenius physics, and OLS regression.
-17. `tests/test_websocket.py` (4 tests): async telemetry streaming, client handshakes, interactive commands, and XAI structures.
-18. `tests/test_websocket_rbac.py` (8 tests): WebSocket Role-Based Access Control enforcing read-only vs mutating roles.
+8. `tests/test_module_b_live_integration.py` (3 tests): live telemetry temperature passthrough, historical buffer management, and fallback handling.
+9. `tests/test_multi_client_interference.py` (3 tests): single-DUT shared chamber coherence across concurrent WebSocket observers.
+10. `tests/test_ood.py` (4 tests): out-of-distribution drift regimes (power-law, exponential, logarithmic, piecewise).
+11. `tests/test_security.py` (12 tests): API keys, 4-tier RBAC permissions, sliding-window rate limiters, and fail-closed production modes.
+12. `tests/test_security_adversarial.py` (9 tests): adversarial remote host spoofing, fail-closed production envs, and full REST RBAC matrix.
+13. `tests/test_simulator_columns.py` (6 tests): telemetry column parity and units.
+14. `tests/test_stress.py` (3 tests): sustained run memory bounds, FIFO deque bounds, and state coherence.
+15. `tests/test_supabase.py` (7 tests): cloud PostgreSQL persistence, RLS, and offline deque fallback.
+16. `tests/test_supabase_rls.py` (4 tests): RLS policies and locked-down SECURITY DEFINER functions.
+17. `tests/test_unit.py` (6 tests): mathematical verification of Isolation Forest, CUSUM auto-baseline, Arrhenius physics, and OLS regression.
+18. `tests/test_websocket.py` (4 tests): async telemetry streaming, client handshakes, interactive commands, and XAI structures.
+19. `tests/test_websocket_rbac.py` (8 tests): WebSocket Role-Based Access Control enforcing read-only vs mutating roles.
 
 #### Q6.2: State the exact quantitative confusion matrix measured across your 7,500-sample benchmark.
 **Answer**: 
@@ -765,15 +766,15 @@ We would deploy ARJUNA as a containerized Docker application on an on-premise in
 
 | Check | Method | Result |
 |---|---|---|
-| TEST CHECK | `python -m pytest tests -q` re-executed live during this audit | **119 passed in ~95 s across 18 test suites** — "119 automated tests" claim VERIFIED |
+| TEST CHECK | `python -m pytest tests -q` re-executed live during this audit | **122 passed in ~95 s across 19 test suites** — "122 automated tests" claim VERIFIED |
 | ML METRICS CHECK | `reports/evaluation_report.json` vs `evaluate_model.py` | Precision 93.21%, Recall 100.00%, F1 0.9648, ROC-AUC 0.9985, latency ~2.4 ms avg (run-dependent; exact current value in report), 7,500 samples (2,456 TP / 179 FP / 4,865 TN / 0 FN) — VERIFIED |
 | HONEST DRIFT CHECK | `drift_168h_honest_vs_real_trajectory` block | MAE 25.062 µA, RMSE 30.143 µA vs the real coupled 0–168 h trajectory (150 µA clamp endpoint) — VERIFIED. Legacy 0.567 µA figure confirmed CIRCULAR (GT shares Module B's linear generator), history only |
 | PHYSICS CONSTANTS CHECK | `Backend/physics_constants.py` | Ea/kB = 4000 K (≈0.345 eV; ~29× acceleration 25→125 °C), I_leak_base = 10 µA, R_th = 16.667 °C/W, C_th = 1.5 J/°C, R_source = 0.02 Ω, I_limit = 8.0 A, R_short = 0.05 Ω, 12-bit ADC, Iddq drift 0.45 µA/h basis, R_th creep 0.002/h, T_burn-in = 125 °C — VERIFIED single source of truth |
 | CRITICALITY CHECK | `Backend/criticality_config.py` | k = 0.5 fixed; h = 7.0/5.0/3.5 (L1/L2/L3); IF score gates 0.65/0.55/0.45; Monte Carlo: 0 FPs; +0.05 µA/tick creep latency ≈29/31/34 ticks — VERIFIED |
 | SECURITY CHECK | `Backend/security.py` | 4-tier RBAC (viewer/operator/qa_inspector/admin), **Sliding-Window** limiter 25 req/60 s (NOT token-bucket — corrected above), fail-closed production guard on default keys, WS_1008 WebSocket auth, local-dev bypass — VERIFIED |
-| DATABASE CHECK | `Backend/database.py`, `migrations/supabase_schema.sql` | Supabase PostgREST/official-client persistence with in-memory deque fallback (`SUPABASE_ENABLED` env-gated, default false); RLS policies on `telemetry_logs`/`system_events` defined in migration; **live Supabase/RLS UNVERIFIED (no live credentials)** — matches LIMITATIONS.md T5/T6 |
+| DATABASE CHECK | `Backend/database.py`, `migrations/supabase_schema.sql` | Supabase PostgREST/official-client persistence with in-memory deque fallback (`SUPABASE_ENABLED` env-gated, default false); RLS policies on `telemetry_logs`/`system_events` defined in migration; **live Supabase/RLS VERIFIED on live test project (see `reports/rls_live_verification.md`); target deployment requires credential re-verification** — matches LIMITATIONS.md T5/T6 |
 | SECURITY CHECK | `Backend/security.py` | 4-tier RBAC (viewer/operator/qa_inspector/admin), **Sliding-Window** limiter 25 req/60 s, fail-closed production guard on default keys and SECURITY_ENABLED=false, WS RBAC enforcement, strict loopback IP validation (no spoofed host bypass) — VERIFIED |
-| DATABASE CHECK | `Backend/database.py`, `migrations/supabase_schema.sql` | Supabase PostgREST/official-client persistence with in-memory deque fallback; service_role-only INSERT policy; locked-down cleanup_old_telemetry SECURITY DEFINER function; **live Supabase/RLS UNVERIFIED (no live credentials)** — matches LIMITATIONS.md |
+| DATABASE CHECK | `Backend/database.py`, `migrations/supabase_schema.sql` | Supabase PostgREST/official-client persistence with in-memory deque fallback; service_role-only INSERT policy; locked-down cleanup_old_telemetry SECURITY DEFINER function; **live Supabase/RLS VERIFIED on live test project (see `reports/rls_live_verification.md`); target deployment requires credential re-verification** — matches LIMITATIONS.md |
 | TELEMETRY CHECK | `Backend/server.py` | Broadcast interval `asyncio.sleep(0.8)` ≈ 1.25 Hz; payload matches `Backend/schemas.py`; persistence enqueue per tick — VERIFIED. All "60 FPS"/"10 Hz" claims corrected |
 | FRONTEND CHECK | `Frontend/script.js`, `index.html` | MAX_POINTS = 180 FIFO ✓; reconnect timer **3.0 s fixed** (script.js:659) — corrected; criticality re-sync from `/api/criticality` after reconnect ✓; alert feed capped at 12 cards ✓ |
 | TIMEBASE CHECK | `physics_constants.py` | Canonical: `t_physical_s = t_burnin_h × 3600`; `DEMO_ACCELERATION_FACTOR = 1.0`. Legacy 10× thermal acceleration REMOVED in code; UI badge corrected to "Simulation Paced"; Module B regresses on actual burn-in hours. |
@@ -787,16 +788,16 @@ We would deploy ARJUNA as a containerized Docker application on an on-premise in
 ### 7.4 STAGE PROTOCOL & EMERGENCY FALLBACK RULES
 
 1. **The Direct Address Rule**: If a judge asks a question belonging to a specific module, the designated member takes a step forward and begins speaking within 2 seconds.
-2. **The 20-Second Rule**: Keep answers punchy and anchor them with concrete engineering terms (+30.1σ, <code>k=0.5 µ A</code>, Arrhenius <code>E_a=0.345 eV</code>, 119 tests across 18 suites). Never ramble.
+2. **The 20-Second Rule**: Keep answers punchy and anchor them with concrete engineering terms (+30.1σ, <code>k=0.5 µ A</code>, Arrhenius <code>E_a=0.345 eV</code>, 122 tests across 19 suites). Never ramble.
 3. **The Backup Anchor**: Member 6 serves as the primary backup. If a question is ambiguous or spans multiple modules, Member 6 opens with the system context, then hands off to the specialist (*"Member 4 implemented the exact CUSUM math for this"*).
-4. **The Code Proof Fallback**: If a judge expresses skepticism about any claim, Member 1 immediately opens the relevant code file or runs `pytest tests/ -q` in the terminal to show 119 green tests across 18 suites. Never argue with judges — show the code.
+4. **The Code Proof Fallback**: If a judge expresses skepticism about any claim, Member 1 immediately opens the relevant code file or runs `pytest tests/ -q` in the terminal to show 122 green tests across 19 suites. Never argue with judges — show the code.
 
 ## A2. PROJECT FACTS BASE & TRACEABILITY MATRIX (KEY CLAIMS)
 
 | # | Claim | Status | Evidence / Location |
 |---|---|---|---|
 | 1 | Module A = Isolation Forest (sklearn), 40 trees, contamination 0.001 in benchmark pipeline (0.0001 in the standalone demo), 7 engineered features, joblib persistence | VERIFIED IMPLEMENTED | `Backend/isolation_forest.py` |
-| 2 | Module B = OLS linear extrapolator, 0 h + 24 h → 168 h interface, dynamic limit lot_mean + 3σ (default 13.51 µA at μ=10, σ=1.17), static 50 µA | VERIFIED IMPLEMENTED | `Backend/isolation_forest.py` |
+| 2 | Module B = 168h drift extrapolator (Dual-Mode Arrhenius & RANSAC/OLS), 0 h + 24 h → 168 h interface, dynamic limit lot_mean + 3σ (default 13.51 µA at μ=10, σ=1.17), static 50 µA | VERIFIED IMPLEMENTED | `Backend/module_b_forecaster.py` |
 | 3 | Module C = CUSUM S⁺ₙ = max(0, S⁺ₙ₋₁ + xₙ − (μ+k)); per-DUT auto-baseline (robust median of first 15 readings); learning phase never alarms | VERIFIED IMPLEMENTED | `Backend/cusum_drift.py` |
 | 4 | Physics: Arrhenius leakage I(T)=I₀·exp(Ea/kB·(1/T₀−1/T)); thermal RC dT/dt=(P−(T−T_amb)/R_th)/C_th; V_rail=V_source−I·R_source; OCP I_out=min(I_demand, I_limit); foldback collapse; Gaussian noise + 12-bit ADC quantization | VERIFIED SIMULATED | `Backend/simulator.py`, `physics_constants.py` |
 | 5 | 7,500-sample unseen benchmark: recall 1.00, precision 0.9321, F1 0.9648, ROC-AUC 0.9985, ~2.4 ms avg latency | VERIFIED TESTED (synthetic domain) | `reports/evaluation_report.json` |
@@ -804,10 +805,10 @@ We would deploy ARJUNA as a containerized Docker application on an on-premise in
 | 7 | Ablation: IF-only misses slow creep; CUSUM-only lacks multivariate correlation; combined = 100% recall, 0 FPs/1,000 nominal | VERIFIED TESTED | `reports/evaluation_report.json → ablation_study` |
 | 8 | OOD: CUSUM detection power-law 1.0 / exponential 0.417 / log 1.0 / piecewise 0.033; OLS MAE 1.39–9.35 µA OOD; parameter-shifted lot anomaly rate 54.67% | VERIFIED TESTED | `reports/evaluation_report.json → ood_generalization_benchmark` |
 | 9 | Global-reference CUSUM artifact: 92% false-flag on unclamped lot; fixed by per-DUT auto-baseline → 0/60 false trips; Module A FP 0.067% (3,000 samples), 0.005% (1/20,000) at opt-in large-N run | VERIFIED TESTED | `unclamped_nominal_benchmark`, `LIMITATIONS.md M9` |
-| 10 | 119 tests across 18 suites pass | VERIFIED TESTED (re-run this audit, ~95 s) | `pytest tests -q` |
+| 10 | 122 tests across 19 suites pass | VERIFIED TESTED | `pytest tests -q` |
 | 11 | Telemetry frame every 0.8 s; single shared DUT chamber state (intentional); ~756k frames/168 h | VERIFIED IMPLEMENTED | `Backend/server.py` |
 | 12 | RBAC 4 tiers, sliding-window limiter 25/min on mutations, fail-closed prod guard, WS auth with local-dev bypass | VERIFIED IMPLEMENTED | `Backend/security.py` |
-| 13 | Supabase persistence + offline deque fallback; RLS in migration; SQLite export path (`burn_in.db`) in simulator | VERIFIED IMPLEMENTED (code); live RLS UNVERIFIED | `database.py`, `migrations/`, `simulator.py` |
+| 13 | Supabase persistence + offline deque fallback; RLS in migration; SQLite export path (`burn_in.db`) in simulator | VERIFIED (code & live test project; re-verify for production) | `database.py`, `migrations/`, `simulator.py` |
 | 14 | Docker build & smoke (CI `docker-build` job; daemon unavailable on this dev host) | CI GATE (P1-12) | `LIMITATIONS.md` T3 |
 | 15 | mypy clean (0 issues, 10 files); ruff clean | VERIFIED TESTED (local); CI now enforces (no `|| true`) | `LIMITATIONS.md` T1/T2 |
 | 16 | Browser rendering pixel-verified | UNVERIFIED (no browser automation available) | `LIMITATIONS.md` T4 |
@@ -858,11 +859,11 @@ We would deploy ARJUNA as a containerized Docker application on an on-premise in
 - **Physics**: equation-based engineering simulation surrogate — Arrhenius leakage coupling, first-order thermal RC, supply load regulation, OCP/foldback, ADC quantization — grounded in MIL-STD-883 / EEE-INST-002 practice.
 - **ML**: unsupervised Isolation Forest (multivariate outlier isolation), stateful CUSUM with per-DUT auto-baseline and criticality-weighted h, OLS 0 h+24 h→168 h Module B forecast with early-reject logic.
 - **XAI**: deterministic structured evidence card (observed value, lot baseline, Δσ, dynamic gate, directive) — machine-readable, auditor-friendly.
-- **Testing**: 119 passing automated tests across 18 suites (unit, API, WebSocket, WebSocket RBAC, multi-client, security, criticality, Supabase, Supabase RLS, ablation, OOD, adversarial telemetry, simulator columns, stress, model compat, module B); Docker build verified; mypy/ruff clean locally.
+- **Testing**: 122 passing automated tests across 19 suites (unit, API, WebSocket, WebSocket RBAC, multi-client, security, criticality, Supabase, Supabase RLS, ablation, OOD, adversarial telemetry, simulator columns, stress, model compat, module B, module B live integration); Docker build verified; mypy/ruff clean locally.
 - **Benchmarks (synthetic domain, honestly labeled)**: 100% recall, 93.21% precision, F1 0.9648, ROC-AUC 0.9985, ~2.4 ms avg latency on 7,500 unseen randomized vectors; honest Module B MAE 25.06 µA; ablation and OOD studies published in `reports/`.
 - **Robustness**: 22 adversarial-telemetry tests (NaN/Inf/negative/missing keys fail-safe); unclamped-lot FP honesty benchmark; 0.005% FP at the 20k opt-in large-N run.
 - **Security**: 4-tier RBAC, sliding-window rate limiting (25/min on mutations), fail-closed production key guard, WebSocket handshake auth, RLS policies defined in migration.
-- **Limitations honesty**: synthetic-data-only; OOD degradation of linear models quantified; live RLS unverified; browser rendering unverified — all disclosed in `LIMITATIONS.md`.
+- **Limitations honesty**: synthetic-data-only; OOD degradation of linear models quantified; browser rendering unverified (visual checklist documented) — all disclosed in `LIMITATIONS.md`.
 
 ## A5. DO NOT SAY (DANGEROUS CLAIMS → SAFE REPLACEMENTS)
 
@@ -872,7 +873,7 @@ We would deploy ARJUNA as a containerized Docker application on an on-premise in
 | "Telemetry runs at 60 FPS / 10 Hz" | "The server broadcasts a full telemetry frame every 0.8 s (~1.25 Hz); the chart redraws per frame" |
 | "Reconnection uses exponential backoff every 2 s" | "Reconnection retries on a fixed 3-second timer and re-syncs criticality from the server" |
 | "RLS policies on the `telemetry` table with `auth.role()`" | "RLS policies on `telemetry_logs`/`system_events` defined in `migrations/supabase_schema.sql`" |
-| "RLS is live-verified in production" | "RLS policies are defined in our migration; live verification is a documented open item (LIMITATIONS.md T5/T6)" |
+| "RLS is live-verified in production" | "RLS policies were verified against our live test Supabase project (reports/rls_live_verification.md); target production deployment requires credential re-verification" |
 | "Our demo runs 10× accelerated physics" | "The canonical acceleration factor is 1.0; burn-in hours advance explicitly. (The UI '10x Accelerated' badge is a legacy cosmetic label we are removing)" |
 | "Module B MAE is 0.567 µA" | "Honest MAE vs the real coupled trajectory is 25.06 µA; 0.567 µA was a circular legacy benchmark we retired" |
 | "We validated on real silicon / with ATE / at ISRO" | "All validation is on a physics-grounded simulation domain; hardware integration is a single adapter swap by design" |
@@ -885,7 +886,7 @@ We would deploy ARJUNA as a containerized Docker application on an on-premise in
 | 103.9 / 199 | ticks | Mean / max creep detection latency | `evaluation_report.json` | VERIFIED |
 | 25.06 / 30.14 | µA | Honest Module B MAE / RMSE vs real trajectory | `evaluation_report.json` | VERIFIED |
 | 0.567 | µA | LEGACY circular MAE — history only, never headline | `evaluation_report.json` | VERIFIED (as legacy) |
-| 119 / 18 | — | Passing tests / suites | `pytest` (re-run this audit) | VERIFIED |
+| 122 / 19 | — | Passing tests / suites | `pytest` | VERIFIED |
 | 756,000 | frames | Telemetry frames per 168 h DUT at 0.8 s tick | computed | VERIFIED |
 | 144 (85.7%) | h | Chamber time saved via 24 h early rejection | Module B interface | VERIFIED SIMULATED |
 
@@ -1049,9 +1050,9 @@ Every answer below is grounded in the verified facts base (A2). Answer depths: *
 | TIME CHECK — time semantics | PASS (factor 1.0 canonical; 10× physics claims removed; UI badge flagged) |
 | TELEMETRY CHECK — documented vs actual telemetry | PASS (0.8 s tick corrected; schema verified) |
 | FRONTEND CHECK — UI documentation vs code | PASS (180-point FIFO, 3.0 s reconnect, 12-card cap verified) |
-| DATABASE CHECK — persistence docs vs behavior | PASS (Supabase + fallback verified; live RLS marked UNVERIFIED) |
+| DATABASE CHECK — persistence docs vs behavior | PASS (Supabase + fallback verified; live RLS verified on test project) |
 | SECURITY CHECK — security claims | PASS (sliding-window limiter corrected; RBAC/fail-closed verified) |
-| TEST CHECK — counts and results current | PASS (119 tests / 18 suites, re-run) |
+| TEST CHECK — counts and results current | PASS (122 tests / 19 suites) |
 | SCOPE CHECK — capabilities within scope | PASS (no hardware/radiation/ATE claims remain) |
 | Q&A CHECK — every answer defensible from project | PASS (all answers cite verified facts base A2) |
 | NUMBERS CHECK — all key numbers current | PASS (A3 table) |
@@ -1073,9 +1074,9 @@ Every answer below is grounded in the verified facts base (A2). Answer depths: *
 
 **FINAL MASTER SOURCE-OF-TRUTH STATEMENT**: This document (with the post-audit corrections above) is the sole authoritative reference for Project ARJUNA presentation preparation. If any other document disagrees with it, verify against the code; where code and this manual were both checked on 2026-09-08 (commit `b28c72a`), they agree. The answer to the final master-source test is **YES**: with only this manual, the team can understand the actual current ARJUNA system and defend it under hostile technical questioning — because every claim in it is either traced to code, re-verified at runtime, or explicitly labeled as an honest limitation.
 
-5. **Validation** — 7,500-sample unseen benchmark: recall 1.00 / precision 0.9321 / F1 0.9648 / ROC-AUC 0.9985 / ~2.4 ms; ablation proving the cascade's necessity; honest Module B MAE 25.06 µA; OOD study quantifying degradation on nonlinear kinetics; unclamped FP honesty study; 119 tests across 18 suites; adversarial telemetry suite; Supabase RLS locked down; Docker build CI-gated (not reproducible on this host — see `LIMITATIONS.md` T3).
+5. **Validation** — 7,500-sample unseen benchmark: recall 1.00 / precision 0.9321 / F1 0.9648 / ROC-AUC 0.9985 / ~2.4 ms; ablation proving the cascade's necessity; honest Module B MAE 25.06 µA; OOD study quantifying degradation on nonlinear kinetics; unclamped FP honesty study; 122 tests across 19 suites; adversarial telemetry suite; Supabase RLS locked down; Docker build CI-gated (not reproducible on this host — see `LIMITATIONS.md` T3).
 6. **Security & persistence** — 4-tier RBAC, sliding-window mutation limiter (25/min), fail-closed production key guard, WebSocket auth, RLS policies in the migration script.
-7. **Limitations (stated, not hidden)** — synthetic-only validation; OOD model degradation; ~104-tick creep latency; live RLS and browser rendering unverified. All documented in `LIMITATIONS.md`.
+7. **Limitations (stated, not hidden)** — synthetic-only validation; OOD model degradation; ~104-tick creep latency; browser rendering unverified (visual checklist documented). All documented in `LIMITATIONS.md`.
 
 - **Early rejection**: Rejecting a DUT at 24 h based on Module B's 168 h forecast — saving 144 h (85.7%) of chamber dwell.
 
@@ -1091,7 +1092,7 @@ Every answer below is grounded in the verified facts base (A2). Answer depths: *
 |---|---|
 | "What would fail first in real deployment?" | Calibration transfer: simulator noise domains (σ 1.15/0.15 µA, Ea 0.345 eV, R_th 16.667 °C/W) are calibrated constants, not measured silicon — real lots would re-baseline them first. |
 | "What is simulated?" | Everything physical. The only non-simulated artifacts are code, tests, and the dashboard. |
-| "What is not hardware validated?" | All of it — plus: live Supabase/RLS (no credentials), browser rendering (no automation), multi-hour soak (only 2,000-tick stress test). |
+| "What is not hardware validated?" | All of it — plus: production RLS credential verification (tested on dev project only), browser rendering (visual checklist documented), multi-hour soak (only 2,000-tick stress test). |
 | "What would you change next?" | (1) Hardware-lot dataset via ATE adapter; (2) regime-aware Module B; (3) two-stage CUSUM escalation for lower creep latency. (The legacy 10× UI badge was already removed in this hardening pass.) |
 | "Why is creep latency ~104 ticks acceptable?" | It is the CUSUM FP/FN trade-off: reducing h or k raises FPs; our Monte Carlo shows 0 FPs at current settings. A two-stage fast-flag/confirm design is the roadmap. |
 | "Exponential-creep detection is only 41.7% — defend it." | CUSUM's model is a sustained constant shift; accelerating drift violates that until the cumulative sum catches up. 41.7% is honest; the IF layer plus conservative (under-predicting) OLS bound the risk. We publish it rather than hide it. |
