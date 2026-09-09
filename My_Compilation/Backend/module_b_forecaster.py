@@ -1,4 +1,11 @@
-"""Canonical Module B forecasting layer (single owner)."""
+"""Canonical Module B forecasting layer (single owner).
+
+This module is the CURRENT single owner for the Module B 168 h Iddq
+forecast path (OLS baseline over burn-in hours, Arrhenius normalization
+helpers, walk-forward validation, clamp/bounds handling). The similarly
+named predictor kept in Backend/isolation_forest.py is a HISTORICAL /
+compatibility alias and must not be treated as the live path.
+"""
 
 from __future__ import annotations
 

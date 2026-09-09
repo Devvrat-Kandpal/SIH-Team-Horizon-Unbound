@@ -23,7 +23,10 @@ except ImportError:
 
 
 # ===========================================================================
-# MODULE B: Latent Drift Predictor (ISRO ECSS-Q-ST-60-02C)
+# MODULE B: Latent Drift Predictor (HISTORICAL compatibility alias).
+# The CURRENT canonical Module B implementation lives in
+# Backend/module_b_forecaster.py. This class is retained only so older
+# imports/tests keep working; do not treat it as the live forecast path.
 # Forecasts the 168h endpoint Iddq from real-time burn-in drift measurements.
 # Uses Ordinary Least Squares linear regression over a rolling time window.
 # ===========================================================================
@@ -67,8 +70,9 @@ class LinearRegressionDriftPredictor:
     def predict_168h(
         self, value_0h: float, value_24h: float, actual_168h: float | None = None
     ) -> dict:
-        """
-        Strict ISRO Module B interface: predicts 168h Iddq purely from 0h and 24h measurements.
+        """SIH 26170 Module B interface (HISTORICAL alias).
+
+        Predicts 168h Iddq purely from 0h and 24h measurements.
         Computes Mean Absolute Error (MAE) if actual ground truth is provided.
         """
         slope = (value_24h - value_0h) / 24.0

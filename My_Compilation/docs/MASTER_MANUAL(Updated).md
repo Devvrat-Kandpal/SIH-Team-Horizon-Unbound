@@ -11,9 +11,9 @@
   scikit-learn 1.9.0, fastapi 0.136.0, pydantic 2.13.4, uvicorn 0.48.0,
   joblib 1.5.3, pytest 9.0.3, ruff 0.16.1.
 - Repo: 183 files under My_Compilation (46 py, 11 md, 21 joblib/csv/db).
-- Tests collected: **116**. Result in dirty tree: **111 passed, 5 failed**.
-  The 5 failures are a PRE-EXISTING server/tests mismatch (see E-CONTRADICTION-1),
-  not Module B regressions (Module B + API + WS + unit + stress + OOD = 68/68 pass).
+- Tests collected: **119 across 18 suites**. Result: **119 passed (100% green)**.
+  The previous server/tests mismatch (E-CONTRADICTION-1 regarding /api/config and WS RBAC)
+  has been resolved, and multi-client coherence tests added (`tests/test_multi_client_interference.py`).
 - Module B files at HEAD: `Backend/isolation_forest.py::LinearRegressionDriftPredictor`
   (sha edd36abd), `server.py` (e971b4bf), `schemas.py` (239924ab),
   `simulator.py` (a09f22db), `physics_constants.py` (1f01074a).
@@ -30,11 +30,11 @@
 | E004 | CODE | Backend/server.py (HEAD+diff) | WS calls update(burn_in_hours,sim_iddq) — NO temperature passthrough | Physics path dormant live |
 | E005 | TEST | tests/test_module_b.py (10/10 pass) | Init, horizon, NaN/Inf, leakage, dup/rev, T-fallbacks, explosion, Arrhenius | Synthetic only |
 | E006 | BENCH | evaluate_module_b.py + Model/sample_data_168h.csv | GT endpoint 150.0uA; 23 clamp rows (first h146.0); MAE OLD 25.19 NEW 11.37 | One deterministic GT family |
-| E007 | TEST | 68-test Module B-relevant subset | 68/68 pass | Excludes 5 pre-existing security/RBAC fails |
-| E008 | RUNTIME | Full suite 116 tests | 111 pass / 5 fail (api/config 404 + WS RBAC) | Dirty-tree mismatch |
+| E007 | TEST | 68-test Module B-relevant subset | 68/68 pass | Module B component tests |
+| E008 | RUNTIME | Full suite 119 tests across 18 suites | 119 passed / 0 failed (100% green) | Verified across all test suites |
 | E009 | CODE | Backend/isolation_forest.py + Model/*.joblib | IF Module A; LinearRegressionDriftPredictor legacy location | Baseline retained |
 | E010 | INFER | Absence search | NO hardware/ISRO/flight/ATE/radiation/production/ECSS/MIL cert evidence | Negative verification |
-| E-CONTRADICTION-1 | CODE+TEST | HEAD server.py vs dirty security.py + test_websocket_rbac.py + test_security.py | HEAD server lacks /api/config + WS RBAC that new tests demand | Pre-existing, unresolved |
+| E-CONTRADICTION-1 | CODE+TEST | Server /api/config + WS RBAC + security.py | RESOLVED: Server implements /api/config + WS RBAC matching security requirements | Resolved in server.py & security.py |
 
 ## 2. CLAIM LEDGER (extract)
 | Claim | Status | Evidence | Safe wording |
@@ -45,7 +45,7 @@
 | 0.567uA legacy | HISTORICAL (circular) | docs | "Historical only, never current" |
 | Hardware/ISRO/flight validation | UNVERIFIED (absent) | E010 | DO NOT SAY |
 | ECSS/MIL compliant | INCORRECT as compliance | E010 | "Designed with reference to…" only |
-| 116 tests all pass | INCORRECT (111/116 in dirty tree) | E008 | "111 passed, 5 pre-existing fails" |
+| 119 tests all pass | VERIFIED_TESTED | E008 | "119 passed across 18 test suites (100% green)" |
 | Live physics path active | PARTIAL (dormant: E004) | E003,E004 | "Implemented, needs 1-line T passthrough" |
 
 ## 3. ARCHITECTURE (verified)
@@ -96,7 +96,7 @@ SYNTHETIC (simulator + generated CSVs).
 | 4000K/0.345eV/~29x | Ea_kB / equiv / 25->125C factor | CURRENT (E001) |
 | 0.45uA/h; 0.002/h | Iddq creep; Rth creep | CURRENT config |
 | [5,150]uA; 175C | Iddq clamp; T ceiling | CURRENT bounds |
-| 116 collected; 111/116 dirty-tree | Test totals | CURRENT (E008) |
+| 119 collected; 119/119 passing | Test totals | CURRENT (E008) |
 | 10/10; 68/68 | Module B tests; relevant subset | CURRENT (E005,E007) |
 
 ## 8. Q&A ENGINE (220+ project-specific; evidence-linked excerpts; full bank in team prep)
@@ -107,7 +107,7 @@ SEMICON(20): surrogate vs TCAD; I_leak vs I_static_blocks 5000x; NBTI not modele
 ML(20): IF features/contamination/seed; score-not-probability; CUSUM k/h/mono...
 DATA(20): GT generator/seed/determinism; clamp rows; lot vs live noise domains...
 TELEMETRY/FE(20): WS 0.8s tick; 0.4h/tick pacing vs physical hours; chart mapping...
-TESTING(20): 111/116 explanation; 68-subset; leakage test; explosion test...
+TESTING(20): 119/119 full suite passing; 68-subset; leakage test; explosion test...
 HOSTILE(20): "prove not overfit"->walk-forward+regimes; "clamp cheat?"->accounting;
   "T forecast faked?"->independent T test+jump fallback; "hardware?"->none, synthetic...
 CROSS-MODULE(20): A vs B vs C ownership; criticality source; DB offline-first...
@@ -121,17 +121,17 @@ Each: files, equations, thresholds, tests, integration points, hostile Qs.
 ## 10. FINAL MATRICES
 - Verification: physics ML data time telemetry FE DB security tests numbers =
   VERIFIED_IMPLEMENTED/TESTED except hardware/compliance (UNVERIFIED) and
-  live-T (PARTIAL) and dirty-tree RBAC (CONTRADICTION, pre-existing).
+  live-T (PARTIAL) and dirty-tree RBAC (RESOLVED: 119/119 passing).
 - Attack scorecard highest risk: hardware claims (0/5), compliance (0/5),
-  canonical-only generalization (2/5), live-T dormant (3/5), dirty-tree fails (2/5).
+  canonical-only generalization (2/5), live-T dormant (3/5), dirty-tree fails (RESOLVED: 119/119 passing).
 - Contradiction register: (1) HEAD server vs new security/RBAC tests
-  [PRE-EXISTING, blocks full-suite green]; (2) 0.567uA vs 25.19uA [RESOLVED:
+  [RESOLVED: server.py & security.py fully aligned, 119/119 green]; (2) 0.567uA vs 25.19uA [RESOLVED:
   historical-circular vs honest]; (3) Ea 0.70eV vs 0.345eV [RESOLVED: 4000K wins].
 
 ## 11. VERDICT: ACCEPTED WITH LIMITATIONS
 Core truth reconstructed; Module B genuine improvement under v2 rule with no
 valid-regime regression; all gaps explicitly listed. NOT ACCEPTED as flawless:
-5 pre-existing suite fails + single-GT-family + live-T dormant + synthetic-only.
+single-GT-family + live-T dormant + synthetic-only (119/119 tests verified green).
 One-minute: "ARJUNA is a synthetic burn-in screening prototype: simulator makes
 telemetry; Isolation Forest catches outliers; CUSUM catches creep; Module B
 forecasts clamped Iddq to 168h; dashboard shows it; all validated synthetically

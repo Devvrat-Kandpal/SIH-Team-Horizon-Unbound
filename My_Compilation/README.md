@@ -5,7 +5,7 @@
 [![Physics-informed: MIL-STD-883 conventions](https://img.shields.io/badge/Physics--informed-MIL--STD--883%20Method%201015%20(conventions)-orange.svg)]()
 [![Criticality: NASA EEE-INST-002-style tiers](https://img.shields.io/badge/Criticality-NASA%20EEE--INST--002--style%20tiers-red.svg)]()
 [![Defect Recall: 100% (synthetic domain)](https://img.shields.io/badge/Defect%20Recall-100.00%25%20(synthetic%20domain)-brightgreen.svg)]()
-[![Test Suite: 106/106 Passed](https://img.shields.io/badge/Automated%20Tests-106%2F106%20Passed-success.svg)]()
+[![Test Suite: 119/119 Passed](https://img.shields.io/badge/Automated%20Tests-119%2F119%20Passed-success.svg)]()
 
 ---
 
@@ -82,7 +82,7 @@ graph TD
 | **Aerospace API Security** | API keys, 4-tier RBAC, rate limiter, WS token check | [`Backend/security.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/Backend/security.py) | [`tests/test_security.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/tests/test_security.py) | **AUTOMATED TESTS PASS (incl. adversarial RBAC)** |
 | **Cloud Persistence** | Supabase PostgreSQL schema, RLS, offline async buffer | [`Backend/database.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/Backend/database.py) | [`tests/test_supabase.py`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/tests/test_supabase.py) | **LOCAL INTEGRATION VERIFIED (live Supabase UNVERIFIED)** |
 
-*(For the complete line-by-line requirement traceability matrix, see [`RTM.md`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/RTM.md)).*
+*(For the complete line-by-line requirement traceability matrix, see [`docs/RTM.md`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/docs/RTM.md)).*
 
 ---
 
@@ -187,7 +187,7 @@ python main.py
 http://127.0.0.1:8000
 ```
 
-### 6.2 Run Automated Test Suite (106 Tests)
+### 6.2 Run Automated Test Suite (119 Tests across 18 Suites)
 ```bash
 pytest tests/ -v
 ```
@@ -221,8 +221,13 @@ docker compose up --build
 ---
 
 ## 8. Documentation Suite
+All engineering manuals, validation reports, and specification documents are centralized in the [`docs/`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/docs) directory:
 
-- [`RTM.md`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/RTM.md): Full Requirement Traceability Matrix.
-- [`CALIBRATION_REPORT.md`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/CALIBRATION_REPORT.md): Physics semiconductor validation per MIL-STD-883.
-- [`TECHNICAL_MANUAL.md`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/TECHNICAL_MANUAL.md): Complete engineering architecture & API guide.
-- [`DEMO_SCRIPT.md`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/DEMO_SCRIPT.md): Synchronized 5-minute presentation script for SIH judging.
+- [`docs/RTM.md`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/docs/RTM.md): Full Requirement Traceability Matrix (NASA EEE-INST-002 / ECSS).
+- [`docs/TECHNICAL_MANUAL.md`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/docs/TECHNICAL_MANUAL.md): Complete engineering architecture & API reference.
+- [`docs/CALIBRATION_REPORT.md`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/docs/CALIBRATION_REPORT.md): Physics semiconductor validation per MIL-STD-883.
+- [`docs/SQLite_FastAPI_WebSocket_Validation.md`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/docs/SQLite_FastAPI_WebSocket_Validation.md): Empirical validation report for persistence, REST latency, and WebSocket streaming.
+- [`docs/CONSOLIDATED_REPORT.md`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/docs/CONSOLIDATED_REPORT.md): Forensic audit and subsystem cross-verification report.
+- [`docs/LIMITATIONS.md`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/docs/LIMITATIONS.md) & [`docs/SCIENTIFIC_LIMITATIONS.md`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/docs/SCIENTIFIC_LIMITATIONS.md): Operational, scientific, and empirical boundary disclosures.
+- [`docs/SECURITY_REMEDIATION.md`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/docs/SECURITY_REMEDIATION.md): Hardening log (RBAC, fail-closed guards, RLS lockdown).
+- [`docs/MASTER_MANUAL.md`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH_26170-main/My_Compilation/docs/MASTER_MANUAL.md): Master technical and operational manual.

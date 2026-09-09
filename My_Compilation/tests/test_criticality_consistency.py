@@ -50,6 +50,7 @@ def test_no_inverted_criticality_wording():
         ROOT_DIR / "Backend" / "simulator.py",
         ROOT_DIR / "Backend" / "server.py",
         ROOT_DIR / "RTM.md",
+        ROOT_DIR / "docs" / "RTM.md",
         ROOT_DIR / "README.md",
     ]
     for path in targets:
