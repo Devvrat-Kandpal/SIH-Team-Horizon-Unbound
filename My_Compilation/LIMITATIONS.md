@@ -1,5 +1,10 @@
 # Project ARJUNA — Documented Limitations & Verification Status
 
+> **Authoritative register**: `docs/SCIENTIFIC_LIMITATIONS.md` is the single
+> source of truth for scientific/modeling limitations and approved demo
+> language. This document covers engineering/verification limitations and
+> paths to resolution; where the two overlap, the register wins.
+
 Purpose: disclose, without embellishment, every known scientific, engineering,
 and verification limitation so evaluators can assess the system honestly.
 Each item lists its root cause and the concrete path to resolution.

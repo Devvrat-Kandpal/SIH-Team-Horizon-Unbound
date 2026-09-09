@@ -1,0 +1,74 @@
+{
+  "model_a_linear": {
+    "model": "linear",
+    "final_degradation_state": 1.0,
+    "destroyed": false,
+    "checkpoints": {
+      "24": {
+        "temperature_c": 126.5,
+        "iddq_uA": 21.63,
+        "rth_effective_c_per_w": 17.467
+      },
+      "48": {
+        "temperature_c": 129.57,
+        "iddq_uA": 34.77,
+        "rth_effective_c_per_w": 18.267
+      },
+      "96": {
+        "temperature_c": 138.25,
+        "iddq_uA": 73.86,
+        "rth_effective_c_per_w": 19.8671
+      },
+      "168": {
+        "temperature_c": 151.62,
+        "iddq_uA": 150.0,
+        "rth_effective_c_per_w": 22.2671
+      }
+    },
+    "endpoint": {
+      "temperature_c": 151.62,
+      "iddq_uA": 150.0
+    },
+    "cusum_first_alarm_h": 17,
+    "module_b_forecast_168h_uA": 144.029,
+    "module_b_error_vs_true_uA": -5.97,
+    "module_b_hours_to_violation": 61.1,
+    "module_b_r2": 0.9785
+  },
+  "model_b_arrhenius": {
+    "model": "accumulated_arrhenius",
+    "final_degradation_state": 1.4805,
+    "destroyed": false,
+    "checkpoints": {
+      "24": {
+        "temperature_c": 126.32,
+        "iddq_uA": 21.57,
+        "rth_effective_c_per_w": 17.4786
+      },
+      "48": {
+        "temperature_c": 130.21,
+        "iddq_uA": 35.97,
+        "rth_effective_c_per_w": 18.3445
+      },
+      "96": {
+        "temperature_c": 139.57,
+        "iddq_uA": 75.86,
+        "rth_effective_c_per_w": 20.3764
+      },
+      "168": {
+        "temperature_c": 159.87,
+        "iddq_uA": 150.0,
+        "rth_effective_c_per_w": 24.6747
+      }
+    },
+    "endpoint": {
+      "temperature_c": 159.87,
+      "iddq_uA": 150.0
+    },
+    "cusum_first_alarm_h": 17,
+    "module_b_forecast_168h_uA": 152.723,
+    "module_b_error_vs_true_uA": 2.72,
+    "module_b_hours_to_violation": 59.1,
+    "module_b_r2": 0.9731
+  }
+}
