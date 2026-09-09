@@ -609,7 +609,7 @@ async def websocket_endpoint(websocket: WebSocket):
     ws_can_control = ws_role in ("operator", "admin")
 
     async def receive_commands():
-        global _requested_scenario
+        global _requested_scenario, _rest_control_generation
         nonlocal is_running, current_scenario, burn_in_hours, sim_v, sim_c, sim_t, sim_iddq, sim_pd
         try:
             while is_running:
@@ -629,6 +629,12 @@ async def websocket_endpoint(websocket: WebSocket):
                             requested = payload.get("scenario", "nominal")
                             if requested in VALID_SCENARIOS:
                                 current_scenario = requested
+                                # Multi-client coherence (documented single-chamber
+                                # design): WS-originated scenario changes must
+                                # propagate to ALL connected clients the same way
+                                # REST controls do, via the generation counter.
+                                _requested_scenario = requested
+                                _rest_control_generation += 1
                             logger.info("Scenario switched to %s", current_scenario)
                     elif action == "reset":
                         if not ws_can_control:
@@ -639,6 +645,11 @@ async def websocket_endpoint(websocket: WebSocket):
                         else:
                             current_scenario = "nominal"
                             burn_in_hours = 0.0
+                            # Multi-client coherence: WS reset propagates to all
+                            # connected clients via the REST generation counter,
+                            # matching the documented single-chamber semantics.
+                            _requested_scenario = "nominal"
+                            _rest_control_generation += 1
                             component_sim.reset()
                             # Re-sync criticality from server global before reset — ensures
                             # CUSUM threshold reflects any changes made via /api/set-criticality
