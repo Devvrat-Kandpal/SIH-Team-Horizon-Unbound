@@ -7,7 +7,7 @@
 | **Standard Reference** | ECSS-Q-ST-60-02C Space Product Assurance & NASA EEE-INST-002 Table 2A |
 | **Target Components** | [`Backend/server.py`](../Backend/server.py), [`Backend/schemas.py`](../Backend/schemas.py), [`Backend/database.py`](../Backend/database.py), [`Backend/simulator.py`](../Backend/simulator.py), [`Backend/security.py`](../Backend/security.py) |
 | **Production Entrypoint** | [`main.py`](../main.py) (`uvicorn.run("Backend.server:app")`) |
-| **Automated Test Suite** | 119 passing tests (`pytest tests/`) covering REST, WebSocket, RBAC, Multi-Client, Stress, and Schema validation |
+| **Automated Test Suite** | 122 passing tests (`pytest tests/`) covering REST, WebSocket, RBAC, Multi-Client, Stress, Module B live integration, and Schema validation |
 | **Classification** | Empirical Verification Report & Software Architecture Audit |
 | **Document Status** | **VERIFIED & HARDENED** (Derived from project code inspection and benchmark measurements) |
 
@@ -231,7 +231,7 @@ Every WebSocket frame emits a `StructuredEvidence` payload containing:
 | **Input Case Normalizer** | Claimed dead code blocked by Pydantic `Literal` | Active and functional (`event_type: str | None` + validator) | [`Backend/schemas.py`](../Backend/schemas.py#L184-L208), [`tests/test_api.py`](../tests/test_api.py#L110) |
 | **Multi-Client Semantics** | Evaluated as isolated independent sessions | Single-DUT shared virtual chamber by deliberate design | [`Backend/server.py`](../Backend/server.py#L87-L93), [`tests/test_multi_client_interference.py`](../tests/test_multi_client_interference.py#L6-L19) |
 | **WebSocket RBAC** | Unmentioned in earlier report | Enforced via handshake auth and message-level role checks | [`Backend/security.py`](../Backend/security.py#L292-L350), [`tests/test_websocket_rbac.py`](../tests/test_websocket_rbac.py) |
-| **Test Suite Pass Rate** | Partial / failing legacy references cited | **119 of 119 tests passing** across entire test suite | `pytest tests/` (100% pass rate) |
+| **Test Suite Pass Rate** | Partial / failing legacy references cited | **122 of 122 tests passing** across entire test suite | `pytest tests/` (100% pass rate across 19 suites) |
 
 ---
 

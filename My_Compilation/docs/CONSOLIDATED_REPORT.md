@@ -3,7 +3,8 @@
 > **Snapshot notice (post-audit remediation, 2026-09):** This report is a historical
 > forensic-audit snapshot that predates the P0-01/P0-04/P0-05/P0-06 remediations
 > applied afterward. It should NOT be used as the current security/coverage claim.
-> The authoritative, current verification is: **119 pytest tests pass across 18 test suites** (including
+> The authoritative, current verification is: **122 pytest tests pass across 19 test suites** (including
+> `tests/test_module_b_live_integration.py` — live telemetry temperature passthrough,
 > `tests/test_module_b.py` — Module B 168h drift predictor, `tests/test_multi_client_interference.py` —
 > shared-chamber coherence, `tests/test_websocket_rbac.py` — WebSocket RBAC, and `tests/test_supabase_rls.py` —
 > RLS/SECURITY DEFINER lockdown), mypy + ruff clean, production fails closed, and

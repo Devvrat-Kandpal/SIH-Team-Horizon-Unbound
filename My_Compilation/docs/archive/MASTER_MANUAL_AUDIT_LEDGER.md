@@ -2,7 +2,8 @@
 **SIH 26170 | Phase 0 Baseline Audit | Status: HISTORICAL REFERENCE ARTIFACT**
 
 > [!NOTE]
-> **HISTORICAL AUDIT ARTIFACT**: This document preserves the Phase 0 forensic claim ledger, evidence matrix, and baseline contradiction register.
+> **HISTORICAL AUDIT ARTIFACT**: This document preserves the Phase 0 forensic claim ledger, evidence matrix, and baseline contradiction register (when the suite stood at 119 tests across 18 suites).
+> As of 2026-09-09, the suite has been expanded and verified at **122 passed tests across 19 suites** (with `tests/test_module_b_live_integration.py`).
 > For the active master presentation manual, spoken demo scripts, and team Q&A battle bank, refer to the canonical [docs/MASTER_MANUAL.md](../MASTER_MANUAL.md).
 
 > Evidence outranks wording. Current implementation outranks documentation.

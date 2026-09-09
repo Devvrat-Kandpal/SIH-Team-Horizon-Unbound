@@ -3,7 +3,7 @@
 **Target Audience**: Smart India Hackathon 2024 Grand Finale Judging Panel / ISRO Technical Evaluators 
 **Problem Statement**: AI-Driven Anomaly Detection in Component Burn-In & Screening (SIH 26170) 
 **Governing Standards**: Designed with reference to **ECSS-Q-ST-60-02C-era Space Product Assurance principles** | **MIL-STD-883 Method 1015** (screening horizon) | **NASA EEE-INST-002** (part criticality tiers); no formal certification claimed
-**Audited Ground Truth**: 119 Automated Tests (100% Green across 18 test suites) | 100.00% Defect Recall | 93.21% Precision | ~2.4–3.7 ms Avg Latency (run-dependent; see report) | 25.06 µA Honest MAE 
+**Audited Ground Truth**: 122 Automated Tests (100% Green across 19 test suites) | 100.00% Defect Recall | 93.21% Precision | ~2.4–3.7 ms Avg Latency (run-dependent; see report) | 25.06 µA Honest MAE 
 
 ---
 
@@ -17,7 +17,7 @@
 | **P4** | **Member 4** *(Time-Series AI Specialist)* | **1:50 – 2:50** | Click **"Reset Chamber"** → **"Inject Thermal Drift"**; show OLS 168h forecast; toggle Criticality to **Level 3**. | Trajectory Forecasting & NASA Criticality: Saving 144 hours (85.7%) of chamber dwell time; adaptive h thresholds across NASA tiers. |
 | **P5** | **Member 2** *(Hardware Simulation Engineer)* | **2:50 – 3:30** | Click **"Inject Short Circuit"**; show rail collapse to 0.40V and current clamp at 8.0A. | Grounded Semiconductor Physics: Physical OCP foldback, Arrhenius subthreshold scaling (<code>E_a=0.345 eV</code>), and thermal RC mass. |
 | **P6** | **Member 5** *(Database & Integration Lead)* | **3:30 – 4:10** | Open History Table, filter by `ELECTRICAL_SHORT`, click **"Export CSV"**; point to Supabase cloud status pill. | Production Architecture & Security: Asynchronous Supabase PostgreSQL streaming, Row-Level Security, 4-tier RBAC, and offline fallback queues. |
-| **P7** | **Member 6** *(Testing & Demo Lead)* | **4:10 – 5:00** | Open `reports/evaluation_report.json` benchmark summary; highlight confusion matrix and latency. | Empirical Proof & Transparent Disclosure: 119 passing automated tests across 18 test suites, 100% defect recall, ~2.4–3.7 ms latency, honest non-circular metrics. |
+| **P7** | **Member 6** *(Testing & Demo Lead)* | **4:10 – 5:00** | Open `reports/evaluation_report.json` benchmark summary; highlight confusion matrix and latency. | Empirical Proof & Transparent Disclosure: 122 passing automated tests across 19 test suites, 100% defect recall, ~2.4–3.7 ms latency, honest non-circular metrics. |
 
 ---
 
@@ -674,9 +674,9 @@ python -m pytest tests/ -q
 ```
 Within about 90 seconds, the terminal prints:
 ```text
-119 passed
+122 passed
 ```
-Proving a green result across all 18 suites.
+Proving a green result across all 19 suites.
 
 ---
 
@@ -706,7 +706,7 @@ Proving a green result across all 18 suites.
 - **Inference Latency**: <code>~2.4 ms</code> average (p99 run-dependent; see report).
 - **Honest 168h Drift Forecast MAE**: <code>25.06 µ A</code> vs real coupled trajectory with 150 µA clamp (<code>0.567 µ A</code> legacy circular benchmark).
 - **Chamber Time Saved**: <code>144 hours</code> (85.7%) at 24h milestone; up to <code>165.6 hours</code> (98.6%) in accelerated creep tests.
-- **Automated Test Suite**: 119 tests across 18 suites (100% passing).
+- **Automated Test Suite**: 122 tests across 19 suites (100% passing).
 
 ---
 
@@ -1043,7 +1043,7 @@ Every answer below is grounded in the verified facts base (A2). Answer depths: *
 | Verification | Status |
 |---|---|
 | CODE CHECK — implementation claims vs current code | PASS (all corrected sections traced to files/functions) |
-| RUNTIME CHECK — test/runtime claims | PASS (119 tests re-executed live: 119 passed across 18 suites) |
+| RUNTIME CHECK — test/runtime claims | PASS (122 tests re-executed live: 122 passed across 19 suites) |
 | PHYSICS CHECK — equations, units, parameters | PASS (single source of truth: `physics_constants.py`) |
 | ML CHECK — model claims and metrics | PASS (`evaluation_report.json` ↔ `evaluate_model.py`) |
 | DATA CHECK — dataset and ground-truth claims | PASS (circular legacy benchmark explicitly quarantined) |
