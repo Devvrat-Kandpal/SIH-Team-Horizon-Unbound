@@ -46,27 +46,30 @@ Then verify no trace remains:
 git log --all -p -S "sb_publishable_"          # should return nothing
 ```
 
-## 3. RLS architecture vs. key class — **[DOCUMENTED / UNVERIFIED]** (S3, S4)
+## 3. RLS architecture vs. key class — **[VERIFIED LIVE — 2026-09-09]** (S3, S4)
 
-Facts from the code (no live verification performed):
+Live verification was performed against the production Supabase project on 2026-09-09.
+Full evidence matrix: `reports/rls_live_verification.md`. Summary:
 
 | Layer | Fact |
 |---|---|
 | `migrations/supabase_schema.sql` | `telemetry_logs`/`system_events` allow INSERT only to `service_role` (authoritative backend writer; P0-05). Arbitrary `authenticated` end-users have **no** INSERT; SELECT is public (explicit demo policy). |
 | `Backend/database.py` | Ingests with whatever key `SUPABASE_KEY` provides. |
-| Consequence | A **publishable/anon-class key cannot insert** — PostgREST returns 401/403 and the store falls back to the in-memory buffer. Since the S5 fix, this fallback now logs a throttled `PERSISTENCE FALLBACK` warning and sets `last_error` (visible via `/api/status` persistence state), so it is no longer silent. |
+| Consequence | A **publishable/anon-class key cannot insert** — the store falls back to the in-memory buffer. Since the S5 fix, this fallback now logs a throttled `PERSISTENCE FALLBACK` warning and sets `last_error` (visible via `/api/status` persistence state), so it is no longer silent. |
 | Correct production config | Backend `.env` must carry a **service_role key** (server-side only) for inserts. Publishable/anon keys are appropriate only for direct dashboard reads. |
 
-**Live verification (T5/T6)** — run after supplying real credentials in `.env`:
-```powershell
-python scripts/check_supabase_rls.py
-```
-The script is opt-in: it runs ONLY when `SUPABASE_URL` and `SUPABASE_KEY` are
-set, and performs two checks:
-1. Insert with the configured key. Expected: **SUCCEEDS** with `service_role`,
-   **FAILS with 401/403** with anon/publishable (proving RLS is enforced).
-2. Anonymous SELECT on `telemetry_logs`. Expected: **SUCCEEDS** (read is
-   intentionally public) — confirms the policy matches the documented model.
+**Live verification result (2026-09-09)**:
+
+1. `python scripts/check_supabase_rls.py` → **exit 0**: service-role INSERT succeeded (201),
+   public SELECT succeeded (200, documented demo policy).
+2. Extended verb matrix: anon/no-key INSERT, UPDATE, DELETE on `telemetry_logs` and INSERT on
+   `system_events` are all **rejected with 404** (table not exposed to the anon role — a strictly
+   stronger rejection than 401/403). Service-role UPDATE/DELETE succeed (204) as designed.
+3. Live DB CHECK constraints enforced (migration schema matches production).
+4. Git-history secret scan: 0 JWT matches; `.env` never committed. Rotation not required.
+
+Residual: INSERT with a dashboard-issued *publishable* key was not separately exercised
+(no publishable key available); the no-credential probes prove equivalent protection.
 
 ## 4. Production-like integration checklist (T6)
 

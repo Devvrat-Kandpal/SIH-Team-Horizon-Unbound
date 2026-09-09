@@ -1,24 +1,32 @@
-﻿HISTORICAL SNAPSHOT - superseded. Current: 101 pytest tests pass (see final report). Values below are from an earlier phase.
-
 ============================= test session starts =============================
 platform win32 -- Python 3.14.4, pytest-9.0.3, pluggy-1.6.0
-rootdir: C:\Users\Mehul Kumar\OneDrive\Desktop\SIH-2026\My_Compilation
+rootdir: C:\Users\Mehul Kumar\OneDrive\Desktop\SIH_26170-main\My_Compilation
 configfile: pyproject.toml
 plugins: anyio-4.12.1
-collected 33 items
+collected 116 items
 
-tests\test_ablation.py ..                                                [  6%]
-tests\test_api.py .......                                                [ 27%]
-tests\test_criticality.py ....                                           [ 39%]
-tests\test_security.py ........                                          [ 63%]
-tests\test_supabase.py ...                                               [ 72%]
-tests\test_unit.py .....                                                 [ 87%]
-tests\test_websocket.py ....                                             [100%]
+tests\test_ablation.py ..                                                [  1%]
+tests\test_adversarial_telemetry.py ......................               [ 20%]
+tests\test_api.py .......                                                [ 26%]
+tests\test_criticality.py ....                                           [ 30%]
+tests\test_criticality_consistency.py ...                                [ 32%]
+tests\test_model_compat.py .....                                         [ 37%]
+tests\test_module_b.py ..........                                        [ 45%]
+tests\test_ood.py ....                                                   [ 49%]
+tests\test_security.py ............                                      [ 59%]
+tests\test_security_adversarial.py .........                             [ 67%]
+tests\test_simulator_columns.py ......                                   [ 72%]
+tests\test_stress.py ...                                                 [ 75%]
+tests\test_supabase.py .......                                           [ 81%]
+tests\test_supabase_rls.py ....                                          [ 84%]
+tests\test_unit.py ......                                                [ 89%]
+tests\test_websocket.py ....                                             [ 93%]
+tests\test_websocket_rbac.py ........                                    [100%]
 
 ============================= slowest 5 durations =============================
-2.46s call     tests/test_websocket.py::test_websocket_interactive_commands
-1.51s call     tests/test_api.py::test_api_history_and_events
-0.88s teardown tests/test_security.py::test_websocket_handshake_security
-0.77s setup    tests/test_ablation.py::test_ablation_sudden_multivariate_break
-0.42s call     tests/test_supabase.py::test_telemetry_store_offline_in_memory_persistence
-============================= 33 passed in 16.35s =============================
+77.50s call     tests/test_unit.py::test_timestep_convergence_destruction_time
+15.77s call     tests/test_stress.py::test_sustained_run_memory_bounded_and_state_coherent
+4.13s call     tests/test_websocket_rbac.py::test_read_only_role_cannot_reset[viewer-arjuna-viewer-key-2026]
+4.13s call     tests/test_websocket_rbac.py::test_read_only_role_cannot_set_scenario[qa_inspector-arjuna-qa-key-2026]
+4.13s call     tests/test_websocket_rbac.py::test_read_only_role_cannot_reset[qa_inspector-arjuna-qa-key-2026]
+======================= 116 passed in 147.80s (0:02:27) =======================
