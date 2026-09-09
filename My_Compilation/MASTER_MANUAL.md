@@ -968,6 +968,15 @@ Every answer below is grounded in the verified facts base (A2). Answer depths: *
 
 [30s] Trust it as evidence the detection stack works on the physics domain it was designed for — not as hardware performance. Synthetic validation proves: the physics engine produces realistic signatures; the detectors catch them; metrics are measured against independently defined ground truth (physical failure criteria, not model outputs); and failure modes are quantified (OOD study). It does NOT prove real-silicon noise distributions are covered — that needs one hardware-lot dataset through the same ingestion contract.
 
+### A6.6b MODULE B — SCOPE OF VALIDITY
+
+**Q: What exactly can Module B claims be?** (authoritative wording — `docs/SCIENTIFIC_LIMITATIONS.md` SL-8)
+
+**Defensible**: *Module B accurately forecasts this simulator's modeled degradation trajectory under the tested conditions.* Evidence: honest non-circular 168 h MAE **25.06 µA** (RMSE 30.14 µA) vs the real coupled trajectory; circular legacy MAE 0.567 µA retained only as a labeled `[circular]` comparison; degradation-law sensitivity (linear vs accumulated-Arrhenius candidate) measured in `reports/degradation_model_comparison.md` (endpoint T 151.6 °C vs 159.9 °C; Module B error −5.97 vs +2.72 µA; CUSUM alarm at 17 h under both laws).
+
+**Unsupported**: *Module B accurately predicts actual spacecraft semiconductor degradation.* The trajectory is synthetic/simulation-derived; OOD MAE rises to 1.4–9.4 µA under nonlinear regimes (measured, not hidden). Any slide/pitch wording must match these two sentences.
+
+
 ### A6.7 HOSTILE JUDGE / CROSS-EXAMINATION
 
 **Q: Where exactly is the Arrhenius equation implemented?**

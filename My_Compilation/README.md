@@ -147,6 +147,15 @@ structural labels; see `unseen_fault_benchmark.segment_metrics` in
 > data rather than asserting it. See [`reports/ablation_study.md`](file:///c:/Users/Mehul%20Kumar/OneDrive/Desktop/SIH-2026/My_Compilation/reports/ablation_study.md)
 > §2a and §5–§6 for the honest drift-forecast, OOD, and threshold-sensitivity tables.
 
+> ### Module B — Scope of Validity (authoritative wording; see docs/SCIENTIFIC_LIMITATIONS.md SL-8)
+> **Defensible claim**: *Module B accurately forecasts this simulator's modeled degradation
+> trajectory under the tested conditions* — honest non-circular 168 h MAE 25.06 µA
+> (RMSE 30.14 µA), with the linear-vs-Arrhenius degradation-law sensitivity quantified in
+> `reports/degradation_model_comparison.md`.
+> **Unsupported claim**: *Module B accurately predicts actual spacecraft semiconductor
+> degradation.* Not supported — the trajectory is synthetic/simulation-derived, and OOD
+> performance (1.4–9.4 µA under nonlinear regimes) is measured, not hidden.
+
 ---
 
 ## 5. Multi-Tier Mission Criticality Framework
